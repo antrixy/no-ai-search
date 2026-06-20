@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: #1d1d1f;
+    --fg: #f4f1ea;
+    --accent: #e07a4f;
+    --muted: #9a9a9d;
+  }
+  body {
+    width: 230px;
+    margin: 0;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  }
+  h1 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    margin: 0 0 14px;
+    color: var(--muted);
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .row span {
+    font-size: 14px;
+  }
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #3a3a3d;
+    transition: background 0.15s ease;
+    border-radius: 22px;
+  }
+  .slider::before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: var(--fg);
+    transition: transform 0.15s ease;
+    border-radius: 50%;
+  }
+  input:checked + .slider {
+    background: var(--accent);
+  }
+  input:checked + .slider::before {
+    transform: translateX(16px);
+  }
+  .status {
+    margin-top: 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--muted);
+  }
+  .note {
+    margin-top: 8px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--accent);
+  }
+  .note:empty {
+    display: none;
+  }
+  .divider {
+    height: 1px;
+    background: #3a3a3d;
+    margin: 14px 0;
+  }
+  .sub-row span {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .substatus {
+    margin-top: 8px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+  <h1>No AI Search</h1>
+  <div class="row">
+    <span>Block AI results</span>
+    <label class="switch">
+      <input type="checkbox" id="toggle" />
+      <span class="slider"></span>
+    </label>
+  </div>
+  <p class="status" id="status">Loading…</p>
+  <p class="note" id="note"></p>
+  <div class="divider"></div>
+  <div class="row sub-row">
+    <span>Show "AI Mode" tab</span>
+    <label class="switch">
+      <input type="checkbox" id="showAiModeTab" />
+      <span class="slider"></span>
+    </label>
+  </div>
+  <p class="substatus" id="substatus"></p>
+  <script src="popup.js"></script>
+</body>
+</html>
