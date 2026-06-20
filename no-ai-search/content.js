@@ -4,21 +4,31 @@
 // search" link, so AI Overview isn't an all-or-nothing setting — you can
 // ask for it on a single query without turning the extension off.
 //
-// The in-page "AI Mode" tab's destination page is handled separately, in
-// background.js via chrome.tabs.onUpdated — except that approach turned
-// out not to work either. Across three different architectural layers —
-// MutationObserver here, declarativeNetRequest, and chrome.tabs.onUpdated
-// — none of them ever observe this transition happening, even though the
-// address bar visibly changes to udm=50. That's strong evidence this
-// isn't reachable through any extension API available here, possibly a
-// deeper Chrome/Google integration rather than a normal page navigation.
+// The in-page "AI Mode" tab's destination page can't be reached by
+// anything in this extension. Four separate extension APIs were tried —
+// declarativeNetRequest, MutationObserver, chrome.tabs.onUpdated, and
+// even chrome.storage.onChanged — and none of them observe anything at
+// all once that page is loaded, even though the address bar visibly
+// shows udm=50. Not "the values don't match," not "the selector misses
+// it" — literally zero signal of any kind reaches this extension on that
+// page. That consistent silence across four unrelated APIs is strong
+// evidence the AI Mode experience isn't part of the same page/origin a
+// content script attaches to at all — most likely it's served from a
+// separate context Chrome merges into the same tab for a seamless feel,
+// with no content script ever injected into it.
 //
 // So instead of catching the destination, AI_MODE_TAB_PATTERNS below hides
 // the clickable tab itself, preventing the click rather than reacting to
-// it. This is a real but bounded mitigation: it stops the obvious path
-// (clicking the visible tab), not every path — someone who manually
-// navigates to a udm=50 URL would still reach it, since (as established
-// above) nothing here can detect or correct that.
+// it. This works correctly everywhere this script actually runs — every
+// normal results page, before AI Mode is ever clicked into. The "show AI
+// Mode tab" setting (see showAiModeTabSetting below) is fully reversible
+// on those pages too. The one bounded gap, a direct consequence of the
+// finding above: flipping that setting off *while already on the AI Mode
+// page itself* does nothing on that specific page, since nothing here is
+// running there to receive the change — it'll correctly apply the moment
+// you're back on a page this script does run on (a new search, the Web
+// tab, etc.). Someone manually navigating to a udm=50 URL would also
+// reach AI Mode unhindered, for the same underlying reason.
 //
 // Detection strategy: SELECTORS below are internal Google attributes
 // (data-attrid, jsname, etc.) that may or may not match what Google

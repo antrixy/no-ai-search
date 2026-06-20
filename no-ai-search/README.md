@@ -29,18 +29,21 @@ from the toolbar icon.
    etc. — see "Language coverage" below) rather than internal Google
    attributes, which proved more durable.
 3. **The in-page "AI Mode" tab** is handled preventatively rather than
-   reactively. Three different approaches were tried to catch the AI
+   reactively. Four different extension APIs were tried to catch the AI
    Mode page after it loads — watching the DOM for changes, the network
-   redirect, and Chrome's tab-URL tracking API — and none of them ever
-   observed that transition happening, even though the address bar
-   visibly changes. So instead, `content.js` hides the clickable "AI
-   Mode" tab itself, preventing the click rather than reacting to it.
-   This is a real but bounded mitigation, not a guarantee — see "What
-   this can't do" below. Hiding it is the default, but it's not forced:
-   a second toggle in the popup ("Show 'AI Mode' tab") lets you bring it
-   back if you'd rather have the option to use it yourself. Flipping
-   that takes effect immediately on the current page, not just future
-   ones.
+   redirect, Chrome's tab-URL tracking API, and even storage change
+   events — and none of them observe anything at all once that page is
+   loaded, even though the address bar visibly changes. That consistent
+   silence across four unrelated APIs points to the AI Mode experience
+   not being part of the same page a content script can attach to. So
+   instead, `content.js` hides the clickable "AI Mode" tab itself,
+   preventing the click rather than reacting to it. This works
+   correctly everywhere this script runs — every normal results page,
+   before AI Mode is ever clicked into. Hiding it is the default, but
+   it's not forced: a second toggle in the popup ("Show 'AI Mode' tab")
+   lets you bring it back, and that takes effect immediately on the
+   current page, not just future ones — with one bounded exception: see
+   "What this can't do" below.
 4. **Show AI Overview on demand:** every results page gets a small
    "Show AI Overview for this search" link (top-right, dismissible).
    Clicking it reopens the same query without `udm`, plus a marker
@@ -119,6 +122,15 @@ a link from elsewhere), that page will load and nothing in this
 extension can detect or correct it. This is a real, accepted gap, not an
 oversight — the alternative was building something that claimed to fix
 it and didn't, which seemed worse than being upfront about the limit.
+
+One specific consequence of this worth calling out: if you turn on
+**"Show 'AI Mode' tab"**, click into AI Mode, and then turn that setting
+back off *while still on that page*, nothing happens on that specific
+page — there's no content script running there to receive the change,
+for the same reason described above. It'll correctly reflect the
+setting the next time you're on a page this script does run on (a new
+search, clicking back to Web, etc.). The setting itself isn't broken,
+it just can't reach back into a page it was never present on.
 
 If another installed extension registers its own `declarativeNetRequest`
 redirect rule for the same Google search URL with a higher priority,
