@@ -67,7 +67,28 @@ extension collects none of them — leave every box unchecked. The
 on/off preference and session token stored locally never leave the
 device, so they don't count as "collected" for this disclosure.
 
+## Test instructions (Privacy tab or Test instructions field)
+
+```
+No account or login is needed to test this extension.
+
+1. Install and confirm the toolbar icon appears. Click it — the popup shows two toggles: "Block AI results" (on by default) and "Show 'AI Mode' tab" (off by default).
+
+2. Go to google.com and search for something like "what is machine learning." The URL will include "udm=14" and the results page will show only standard web links — no AI-generated summary panel.
+
+3. On that same results page, note there is no "AI Mode" tab in the row of tabs (All, Images, Videos, etc.) — it's hidden by default.
+
+4. In the top-right corner of the results page, there's a small "Show AI Overview for this search" link. Clicking it reloads the same search without the udm=14 filter, so Google's AI Overview (if available for that query) is shown for that one search only. Searching again afterward returns to the filtered default.
+
+5. In the popup, turn "Block AI results" off. Search again — AI Overview is no longer filtered, demonstrating the toggle controls the entire feature.
+
+6. Turn "Block AI results" back on, then turn "Show 'AI Mode' tab" on. Search again — the "AI Mode" tab now appears in the tab row, since this is an opt-in setting for people who sometimes want access to it.
+
+No special test account, region, or language is required — all of the above works on a standard Google search in English.
+```
+
 ## Privacy policy (Privacy tab)
 
-Paste the published URL of `PRIVACY.md` (e.g. its GitHub Pages or raw
-GitHub URL) into this field once it's committed to your repo.
+```
+https://github.com/antrixy/no-ai-search/blob/main/docs/PRIVACY.md
+```
