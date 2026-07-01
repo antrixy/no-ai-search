@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "No AI Search",
   "version": "1.1.0",
+  "minimum_chrome_version": "101",
   "description": "Automatically skips Google's AI Overviews and AI Mode, showing classic web results instead. Toggle on/off from the toolbar.",
   "permissions": ["storage", "declarativeNetRequest"],
   "host_permissions": ["https://www.google.com/search*", "https://google.com/search*"],
