@@ -16,7 +16,7 @@ Searches are filtered at the source, before anything AI-generated ever loads. No
 
 CHANGED YOUR MIND?
 AI blocking shouldn't be all-or-nothing:
-• Want the AI Overview for one search? A small "Show AI Overview for this search" link is right there on every results page.
+• Want the AI Overview for one search? A small "Show AI Overview for this search" link is right there on the results page.
 • Want the AI Mode tab back for good? A second toggle in the popup brings it back, no need to disable the extension.
 
 SIMPLE CONTROLS
