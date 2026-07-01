@@ -4,6 +4,16 @@
 // search" link, so AI Overview isn't an all-or-nothing setting — you can
 // ask for it on a single query without turning the extension off.
 //
+// IMPORTANT (v1.1): when a page is reached via an authorized "Show AI
+// Overview" link — i.e. its URL carries this session's bypass token —
+// this script stays completely hands-off on that page: no hiding, no
+// MutationObserver, no banner, and no ai_content_detected report. The
+// network-layer bypass rule in background.js already lets Google serve
+// the AI Overview; without this exemption, the backstop below would then
+// re-hide the very panel the user just asked to see AND fire a
+// misleading "backup filter caught something" note in the popup. See
+// isAuthorizedBypass() and the init block at the bottom of this file.
+//
 // The in-page "AI Mode" tab's destination page can't be reached by
 // anything in this extension. Four separate extension APIs were tried —
 // declarativeNetRequest, MutationObserver, chrome.tabs.onUpdated, and
@@ -40,8 +50,10 @@
 // carrying a data-hveid attribute — a marker Google uses broadly across
 // the results page to demarcate individual result blocks, not something
 // AI-specific, which makes it a more stable anchor than guessing at
-// AI-specific internals. If no such ancestor exists, a fixed number of
-// parent levels is climbed instead, as a safety net.
+// AI-specific internals. If no such ancestor exists, climbToPanel()
+// climbs a bounded number of parent levels — but stops early at the
+// results root or a page-sized node, so a layout change can't cause it
+// to hide half the page (see its comment).
 //
 // HEADING_TEXT_PATTERNS confidence by language: English, French, German,
 // and Portuguese strings were confirmed directly against Google's own
@@ -97,29 +109,93 @@ function isAiModeTabText(text) {
 const BYPASS_PARAM = "show_ai_overview";
 const BANNER_ID = "no-ai-search-banner";
 
+// Marks panels this script hid, and stashes their prior inline display
+// value, so restoreHiddenPanels() can put them back when the extension
+// is toggled off — hiding needs to be reversible on the open page, not
+// just until the next reload.
+const HIDDEN_PANEL_MARKER = "data-noaisearch-hidden-panel";
+
 let observer = null;
 let reported = false;
+// Set once at load: true only when this exact page was opened via an
+// authorized "Show AI Overview" link for the current session. When true,
+// every filtering path below no-ops — the user asked to see AI here.
+let bypassAuthorized = false;
+
+// True only if the current page carries this session's bypass token in
+// the URL. A token from a previous session (regenerated on each browser
+// startup/install in background.js) won't match, so stale bypass links
+// don't grant an exemption. Returns false when no token is stored yet.
+function isAuthorizedBypass(bypassToken) {
+  if (!bypassToken) return false;
+  return new URLSearchParams(window.location.search).get(BYPASS_PARAM) === bypassToken;
+}
+
+// The banner only makes sense on the Web results view (udm=14) — the one
+// place AI Overview would otherwise appear and that this extension has
+// filtered. On Images/Videos/Shopping/etc. there's no AI Overview to
+// "show," so the banner would just be noise there.
+function isWebResultsView() {
+  return new URLSearchParams(window.location.search).get("udm") === "14";
+}
 
 function hide(node) {
-  if (node.style.display !== "none") {
+  if (node.getAttribute && node.getAttribute(HIDDEN_PANEL_MARKER)) return; // already hidden by us
+  if (node.style && node.style.display !== "none") {
+    node.dataset.noaisearchPrevDisplay = node.style.display || "";
     node.style.setProperty("display", "none", "important");
+    node.setAttribute(HIDDEN_PANEL_MARKER, "1");
   }
   // Tell background.js the redirect didn't fully do its job here, so the
   // popup can surface that instead of silently degrading. Only once per
-  // page — this is a signal, not a counter.
+  // page — this is a signal, not a counter. (Never reached on an
+  // authorized bypass page: filtering never runs there.)
   if (!reported) {
     reported = true;
     chrome.runtime.sendMessage({ type: "ai_content_detected" }).catch(() => {});
   }
 }
 
-// Fallback when no data-hveid ancestor exists: climb a fixed number of
-// parent levels so the whole module gets hidden, not just the heading
-// text itself (which would leave an empty box behind).
-function climbFixed(node, levels) {
+// Undoes every panel hide() performed on this page — used when the user
+// toggles the extension off, so AI content reappears immediately instead
+// of only after a reload (mirrors revealAiModeTab() for the AI Mode tab).
+function restoreHiddenPanels() {
+  document.querySelectorAll(`[${HIDDEN_PANEL_MARKER}]`).forEach((el) => {
+    const prev = el.dataset ? el.dataset.noaisearchPrevDisplay : "";
+    if (prev) {
+      el.style.setProperty("display", prev);
+    } else {
+      el.style.removeProperty("display");
+    }
+    if (el.dataset) delete el.dataset.noaisearchPrevDisplay;
+    el.removeAttribute(HIDDEN_PANEL_MARKER);
+  });
+}
+
+const MAX_CLIMB_LEVELS = 6;
+// Known Google results-container ids. Climbing into or past any of these
+// means we've overshot a single AI panel and are into shared page
+// structure — stop before hiding it.
+const RESULTS_CONTAINER_IDS = new Set(["search", "rso", "center_col", "main", "cnt"]);
+
+// Fallback when no data-hveid ancestor exists: climb toward the panel
+// container, but bounded three ways so a layout change can't make us hide
+// half the page — (1) a hard level cap, (2) stop at the <body> or a known
+// results-container id, (3) stop if the candidate already spans most of
+// the viewport (page structure, not one module). Returns the last safe
+// element, so the whole module is hidden rather than just the heading
+// text (which would leave an empty box behind).
+function climbToPanel(node, maxLevels) {
   let el = node;
-  for (let i = 0; i < levels && el.parentElement; i++) {
-    el = el.parentElement;
+  for (let i = 0; i < maxLevels && el.parentElement; i++) {
+    const parent = el.parentElement;
+    if (parent === document.body || parent === document.documentElement) break;
+    if (parent.id && RESULTS_CONTAINER_IDS.has(parent.id)) break;
+    // getBoundingClientRect here forces a layout read, but this only runs
+    // when an AI heading is actually found (rare), not on every mutation.
+    const height = parent.getBoundingClientRect().height;
+    if (height > 0 && height > window.innerHeight * 0.9) break;
+    el = parent;
   }
   return el;
 }
@@ -134,7 +210,7 @@ function scanForHeadings(root) {
     if (!el.getAttribute || el.getAttribute("role") !== "heading") return;
     const text = (el.textContent || "").trim();
     if (!isAiHeadingText(text)) return;
-    const container = el.closest("[data-hveid]") || climbFixed(el, 6);
+    const container = el.closest("[data-hveid]") || climbToPanel(el, MAX_CLIMB_LEVELS);
     if (container) containers.push(container);
   };
   check(root);
@@ -165,6 +241,7 @@ const HIDDEN_TAB_MARKER = "data-noaisearch-hidden-tab";
 // so revealAiModeTab() can fully restore the element later if the user
 // opts to show the tab — this needs to be reversible, not just hidden.
 function hideAiModeTab(root) {
+  if (bypassAuthorized) return; // authorized bypass page: leave everything as Google served it
   if (showAiModeTabSetting) return;
   const candidates = [];
   const check = (el) => {
@@ -273,6 +350,7 @@ async function buildShowAiUrl() {
 }
 
 async function injectShowAiBanner() {
+  if (!isWebResultsView()) return; // only on the Web view; nothing to "show AI for" elsewhere
   if (document.getElementById(BANNER_ID)) return;
   const href = await buildShowAiUrl();
   if (!href) return;
@@ -307,8 +385,18 @@ function removeShowAiBanner() {
   document.getElementById(BANNER_ID)?.remove();
 }
 
-chrome.storage.local.get(["enabled", "showAiModeTab"], (result) => {
+chrome.storage.local.get(["enabled", "showAiModeTab", "bypassToken"], (result) => {
   showAiModeTabSetting = result.showAiModeTab === true;
+  // If this page was reached via an authorized "Show AI Overview" link,
+  // the user explicitly asked to see AI content here — so this script
+  // stays completely hands-off: no hiding, no observing, no banner, and
+  // (critically) no ai_content_detected report, which would otherwise
+  // fire a misleading "backup filter caught something" note in the popup
+  // for content the user deliberately requested. This is the fix for the
+  // bypass-link regression; see the header comment.
+  bypassAuthorized = isAuthorizedBypass(result.bypassToken);
+  if (bypassAuthorized) return;
+
   if (result.enabled !== false) {
     initialScan();
     startObserving();
@@ -324,11 +412,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (showAiModeTabSetting) {
       revealAiModeTab();
     } else {
-      hideAiModeTab(document);
+      hideAiModeTab(document); // no-ops on an authorized bypass page
     }
   }
 
   if ("enabled" in changes) {
+    if (bypassAuthorized) return; // authorized bypass page: never filter it
     if (changes.enabled.newValue !== false) {
       initialScan();
       startObserving();
@@ -336,6 +425,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     } else {
       stopObserving();
       removeShowAiBanner();
+      restoreHiddenPanels(); // bring AI panels back immediately, not just on reload
     }
   }
 });
