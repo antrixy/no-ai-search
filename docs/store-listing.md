@@ -9,13 +9,13 @@ field names you'll see there.
 Plain text, no markdown — paste as-is.
 
 ```
-Tired of scrolling past an AI-generated summary just to get to real search results? No AI Search skips Google's AI Overviews and AI Mode automatically — every search, every time — so you land straight on the classic list of web results.
+Tired of scrolling past an AI-generated summary just to get to real search results? No AI Search turns off Google's AI Overviews and AI Mode automatically — every search, every time — so you land straight on the classic list of web results.
 
 HOW IT WORKS
-Searches are filtered at the source, before anything AI-generated ever loads. Nothing flashes by, nothing needs to be hidden after the fact. The in-page "AI Mode" tab is hidden by default too, so there's no separate AI chat experience waiting to pull you in. Works across both google.com and www.google.com.
+Searches are filtered at the source, before anything AI-generated ever loads — nothing flashes by, nothing has to be hidden after the fact. Under the hood it forces Google's classic Web results (the udm=14 filter), so no AI Overview is generated in the first place. The in-page "AI Mode" tab is hidden by default too, so there's no separate AI chat experience waiting to pull you in. Works across both google.com and www.google.com.
 
 CHANGED YOUR MIND?
-AI blocking shouldn't be all-or-nothing:
+Blocking AI shouldn't be all-or-nothing:
 • Want the AI Overview for one search? A small "Show AI Overview for this search" link is right there on the results page.
 • Want the AI Mode tab back for good? A second toggle in the popup brings it back, no need to disable the extension.
 
