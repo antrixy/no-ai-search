@@ -4,7 +4,7 @@ All notable changes to No AI Search are documented here. This project
 follows [Semantic Versioning](https://semver.org/) and the format is based
 on [Keep a Changelog](https://keepachangelog.com/).
 
-## [1.1.1] — 2026-07-02
+## 1.1.1 — 2026-07-02
 
 Listing-only update; no code or permission changes.
 
@@ -14,7 +14,7 @@ Listing-only update; no code or permission changes.
   description that the extension works by forcing Google's classic Web
   results via the `udm=14` filter.
 
-## [1.1.0] — 2026-07-01
+## 1.1.0 — 2026-07-01
 
 ### Fixed
 - "Show AI Overview for this search" now works. Previously the link let
@@ -38,7 +38,7 @@ Listing-only update; no code or permission changes.
 - The "Show AI Overview" banner now appears only on the Web results view,
   not on Images, Videos, or other result tabs.
 
-## [1.0.0] — 2026-06-20
+## 1.0.0 — 2026-06-20
 
 ### Added
 - Initial Chrome Web Store release.
@@ -49,5 +49,3 @@ Listing-only update; no code or permission changes.
 - One-click on/off toggle in the toolbar.
 - "Show AI Overview for this search" link to view AI results for a single
   query on demand.
-
-[1.1.1]: https://github.com/antrixy/no-ai-search/releases/tag/v1.1.1
