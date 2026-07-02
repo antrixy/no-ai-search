@@ -44,7 +44,7 @@ from the toolbar icon.
    lets you bring it back, and that takes effect immediately on the
    current page, not just future ones — with one bounded exception: see
    "What this can't do" below.
-4. **Show AI Overview on demand:** every results page gets a small
+4. **Show AI Overview on demand:** every Web results page gets a small
    "Show AI Overview for this search" link (top-right, dismissible).
    Clicking it reopens the same query without `udm`, plus a marker
    param whose value is a random token generated fresh each session (on
@@ -53,8 +53,11 @@ from the toolbar icon.
    `declarativeNetRequest` rule in `background.js` watches for that
    marker and lets the matching request through untouched — so that one
    click skips the redirect, while every other search still gets
-   filtered normally. It's scoped to a single query; the next search you
-   run isn't affected.
+   filtered normally. The backstop in `content.js` recognizes the same
+   marker and stays completely hands-off on that one page, so it won't
+   re-hide the AI Overview you asked to see or raise a false "backup
+   filter caught something" note for it. It's scoped to a single query;
+   the next search you run isn't affected.
 
 Both the redirect and the backstop are deliberately not assumed to be
 perfect. If the backstop ever has to hide something, it reports that
@@ -150,9 +153,11 @@ page markup). If AI content ever slips through:
    a matching pattern to `HEADING_TEXT_PATTERNS` in the same file — this
    is the more durable option (see "Language coverage" above).
 
-## Install (unpacked, for personal use)
+## Install
 
-This isn't published to the Chrome Web Store, so you'll load it directly:
+The easiest way is from the Chrome Web Store. To run a local build
+instead — for development, or to try changes before they've gone through
+Store review — load it unpacked:
 
 1. Open `chrome://extensions` in Chrome.
 2. Turn on **Developer mode** (top-right toggle).
@@ -172,5 +177,3 @@ across your other signed-in Chrome devices).
 | `content.js` | Backstop scoped to search pages, plus the "Show AI Overview" link |
 | `popup.html` / `popup.js` | The on/off toggle UI, plus status notes |
 | `icons/` | Toolbar icon |
-
-
