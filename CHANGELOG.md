@@ -51,5 +51,3 @@ Listing-only update; no code or permission changes.
   query on demand.
 
 [1.1.1]: https://github.com/antrixy/no-ai-search/releases/tag/v1.1.1
-[1.1.0]: https://github.com/antrixy/no-ai-search/releases/tag/v1.1.0
-[1.0.0]: https://github.com/antrixy/no-ai-search/releases/tag/v1.0.0
