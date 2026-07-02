@@ -13,6 +13,8 @@ Check each box as you go. All items must pass.
 - [ ] Toolbar icon (crossed-out AI circle) appears in the Chrome toolbar
 - [ ] Click the toolbar icon → popup opens showing toggle **ON** and status
       text "Google searches will skip AI Overviews and AI Mode."
+- [ ] Confirm the popup also shows a **"Show 'AI Mode' tab"** toggle,
+      **OFF** by default
 - [ ] No yellow warning banners or error messages in `chrome://extensions`
 
 ---
@@ -43,17 +45,38 @@ Check each box as you go. All items must pass.
 - [ ] From a filtered results page (either domain), click
       **"Show AI Overview for this search"**
 - [ ] Confirm the new page loads **without** `udm=14` in the URL
-- [ ] Confirm the page does **not** immediately get redirected back to
-      filtered results
-- [ ] Confirm an AI Overview or AI Mode result appears (or at minimum
-      that the URL is different and Google's default tab is shown)
+- [ ] Confirm the page is **not** immediately redirected back to filtered
+      results
+- [ ] Confirm Google's AI Overview actually appears **and stays visible** —
+      it must not flash in and then vanish. (That flash-then-hide was the
+      pre-1.1 bug: the backstop was re-hiding the panel the user just
+      asked to see.) _If Google shows no AI Overview for this query at
+      all, retry with a more AI-prone query like "how does photosynthesis
+      work" — do not treat "URL is just different" as a pass._
+- [ ] Open the popup and confirm it does **not** show a "Backup filter
+      caught something…" note. On a bypass page the backstop must stay
+      completely hands-off, so a note here means the bypass exemption has
+      regressed.
 - [ ] Run a **new search** from that page
 - [ ] Confirm the new search URL contains `udm=14` again (redirect is
       back in effect)
 
 ---
 
-## 5. Dismiss banner
+## 5. "Show AI Overview" banner is Web-results-only
+
+- [ ] From a filtered results page, click the **Images** tab
+      (URL becomes `udm=2`)
+- [ ] Confirm the **"Show AI Overview for this search"** banner does
+      **not** appear on the Images results
+- [ ] Click the **Videos** tab and confirm the banner does not appear
+      there either
+- [ ] Return to **All / Web** results (`udm=14`) and confirm the banner
+      is present again
+
+---
+
+## 6. Dismiss banner
 
 - [ ] On a filtered results page, click the **×** button on the banner
 - [ ] Confirm the banner disappears immediately
@@ -61,7 +84,7 @@ Check each box as you go. All items must pass.
 
 ---
 
-## 6. Toggle off
+## 7. Toggle off
 
 - [ ] Click the toolbar icon → flip the toggle to **OFF**
 - [ ] Confirm popup shows "Off — Google's normal AI results will show."
@@ -70,10 +93,17 @@ Check each box as you go. All items must pass.
 - [ ] Confirm the "Show AI Overview" banner does **not** appear
 - [ ] Confirm AI Overviews can now appear normally (try "what is
       machine learning" again)
+- [ ] _(Conditional — only reproducible if the backstop fired earlier.)_
+      If at any point during testing the popup showed "Backup filter
+      caught something…" **and** an AI panel was hidden on a page, then
+      while still on that page flip the extension **OFF** and confirm the
+      hidden panel reappears **without** reloading. In normal operation
+      the redirect stops the backstop from ever needing to hide anything,
+      so this may not be reproducible — **do not fail on it.**
 
 ---
 
-## 7. Toggle back on
+## 8. Toggle back on
 
 - [ ] Click the toolbar icon → flip toggle back to **ON**
 - [ ] Run a search
@@ -82,19 +112,22 @@ Check each box as you go. All items must pass.
 
 ---
 
-## 8. In-page AI Mode tab (backstop test)
+## 9. "AI Mode" tab hidden by default (and the show toggle)
 
 - [ ] With the extension ON, run a search on `www.google.com`
-- [ ] If a **"AI Mode"** tab is visible in the search tab bar, click it
-- [ ] Confirm the backstop hides any AI content that loads via that tab
-- [ ] Check the popup — if the backstop fired, it should show a note:
-      "Backup filter caught something…"
-- [ ] _(If the AI Mode tab doesn't appear for your query, skip — this
-      depends on what Google shows for your account/region)_
+- [ ] Confirm there is **no** "AI Mode" tab in the results tab row
+      (All, Images, Videos, News…) — it's hidden by default
+- [ ] Open the popup and turn **"Show 'AI Mode' tab"** ON
+- [ ] Without reloading, confirm the "AI Mode" tab now appears in the tab
+      row on the current page (the setting takes effect immediately)
+- [ ] Turn **"Show 'AI Mode' tab"** back OFF and confirm the tab
+      disappears again on the current page
+- [ ] _(If Google shows no "AI Mode" tab for your account/region even with
+      the setting ON, skip — availability depends on account/region)_
 
 ---
 
-## 9. Session token rotation
+## 10. Session token rotation
 
 - [ ] With the extension ON, open a filtered results page and note the
       full URL of the "Show AI Overview" link (hover or inspect `href`)
@@ -109,7 +142,7 @@ Check each box as you go. All items must pass.
 
 ---
 
-## 10. Error surfacing (optional but recommended)
+## 11. Error surfacing (optional but recommended)
 
 - [ ] Open `chrome://extensions` → click **Service worker** link for
       No AI Search to open the background DevTools console
@@ -120,7 +153,7 @@ Check each box as you go. All items must pass.
 
 ---
 
-## 11. Selector check (most likely thing to need a fix)
+## 12. Selector check (most likely thing to need a fix)
 
 - [ ] Run a search that shows an AI Overview with the extension **OFF**
 - [ ] Right-click the AI Overview container → **Inspect**
@@ -133,7 +166,7 @@ Check each box as you go. All items must pass.
 
 ---
 
-## 12. No unintended side effects
+## 13. No unintended side effects
 
 - [ ] Open **Gmail** (`mail.google.com`) and use its search bar
 - [ ] Confirm Gmail search works normally and URL does **not** contain
@@ -147,13 +180,19 @@ Check each box as you go. All items must pass.
 
 ## Known acceptable gaps (do not fail on these)
 
-- The "AI Mode" tab inside a results page may still be visible as a UI
-  element even when AI content is being filtered — hiding the tab
-  itself is a separate feature not in v1.
+- If you navigate **directly** to a `udm=50` (AI Mode) URL — typing it,
+  an old bookmark, an external link — that page loads and the extension
+  cannot detect or correct it. Hiding the in-page tab prevents the click
+  path, not every possible route to that URL.
+- Turning **"Show 'AI Mode' tab"** off *while already on the AI Mode page
+  itself* does nothing on that specific page; it applies again on the
+  next normal results page. The content script never runs on the AI Mode
+  page — see the README's "What this can't do."
 - The omnibox Gemini/AI Mode button is native Chrome UI; the extension
   cannot remove it and is not expected to.
-- On a country where Google's ccTLD redirect hasn't fully rolled out,
-  a search made directly on e.g. `google.co.uk` may not be filtered.
+- In a region where Google's ccTLD→`google.com` redirect hasn't fully
+  rolled out, a search made directly on e.g. `google.co.uk` may not be
+  filtered.
 
 ---
 
