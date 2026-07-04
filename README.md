@@ -61,10 +61,10 @@ The extension does not read the content of pages other than Google search result
 
 ## In this repo
 
-- **`no-ai-search/`** — the extension itself. See its own README for the manifest, the ruleset, and how the pieces fit together.
-- **`docs/`** — the privacy policy, Chrome Web Store listing text, and a manual test checklist.
-- **`assets/`** — promotional graphics and screenshots used in the Store listing.
-
+- [`no-ai-search/`](no-ai-search/) — the extension itself. See its own README for the manifest, the ruleset, and how the pieces fit together.
+- [`docs/`](docs/) — the privacy policy, Chrome Web Store listing text, and a manual test checklist.
+- [`assets/`](assets/) — promotional graphics and screenshots used in the Store listing.
+  
 ## Compatibility
 
 - Works in Chrome and Chromium-based browsers that support Manifest V3 and `declarativeNetRequest` (Chrome, Edge, Brave, and similar).
