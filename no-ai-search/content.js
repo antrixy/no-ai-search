@@ -65,7 +65,6 @@
 
 const SELECTORS = [
   'div[data-attrid="AIOverview"]',
-  'div[jsname="N760b"]',
   '[aria-label="AI Overview"]',
   '[aria-label*="AI Mode" i]'
   // A previous "bard" substring selector was removed here: it did a
