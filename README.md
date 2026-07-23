@@ -30,6 +30,16 @@ The rule only fires when `udm=14` isn't already present, which avoids redirect l
 - **Clean disable** — restores anything it adjusts when you turn the extension off, so nothing is left in a half-modified state.
 - **Auditable** — plain Manifest V3 with straightforward HTML/CSS/JS and no build step, so you can read exactly what it does.
 
+## What's new
+
+**1.1.2** — Fixes "People also ask" being hidden along with the AI Overview. This showed up when you switched the extension on while a results page was already open: the AI Overview disappeared correctly, but the question list went with it. Ordinary searches were unaffected.
+
+**1.1.1** — Store listing update only. No changes to how the extension behaves.
+
+**1.1.0** — "Show AI Overview for this search" now works properly, hidden panels come back the moment you toggle the extension off, and the bypass banner is limited to the Web results view.
+
+Full history: **[Releases](https://github.com/antrixy/no-ai-search/releases)** · **[CHANGELOG](CHANGELOG.md)**
+
 ## Install
 
 ### From the Chrome Web Store (recommended)
