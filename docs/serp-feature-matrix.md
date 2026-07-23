@@ -102,7 +102,7 @@ These we *want* gone. Mode A removes them by never serving them. Mode B
 must remove them via the content-script backstop on a normal SERP — so
 Mode B needs its own live check here, plus a flash observation.
 
-Mode B measured against `content.js` at commit `<FIX-SHA>` (post-`N760b`
+Mode B measured against `content.js` at commit `b42c61c` (post-`N760b`
 removal, unreleased), via the toggle-on harness described below, with all
 other extensions removed. 3 repeats per row — see Findings §9.
 
@@ -349,7 +349,7 @@ the nature of the data.
 
 *The pre-run predictions this calibration finding refers to were the Notes
 column of Table A before the 2026-07-22 run; they were overwritten by
-results in that commit and survive in `<PRE-RUN-SHA>`.*
+results in that commit and survive in `9d65f75`.*
 
 ### 7. Popup false positive on toggle-on
 
@@ -391,7 +391,7 @@ each time.
 
 ### 9. Post-fix verification run (2026-07-22, second session)
 
-`div[jsname="N760b"]` removed from `SELECTORS` in `<FIX-SHA>`. Re-run of
+`div[jsname="N760b"]` removed from `SELECTORS` in `b42c61c`. Re-run of
 the Table B rows under the toggle-on harness: desktop, signed in, US,
 Chrome, **all other extensions removed**, unpacked build loaded from the
 fixed commit.
