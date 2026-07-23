@@ -4,6 +4,18 @@ All notable changes to No AI Search are documented here. This project
 follows [Semantic Versioning](https://semver.org/) and the format is based
 on [Keep a Changelog](https://keepachangelog.com/).
 
+## 1.1.2 — 2026-07-23
+
+### Fixed
+- The **"People also ask"** block is no longer hidden along with the AI
+  Overview. Google reassigned the internal attribute the extension used to
+  identify AI panels, and it now marks the People-also-ask container
+  instead, so that block was being removed on searches where it appeared.
+  The stale selector has been dropped. AI Overview hiding is unchanged and
+  was re-verified across nine runs on three queries. An AI answer attached
+  to the top People-also-ask question is still hidden — only the questions
+  themselves come back.
+
 ## 1.1.1 — 2026-07-02
 
 Listing-only update; no code or permission changes.
