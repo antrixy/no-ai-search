@@ -176,6 +176,18 @@ Check each box as you go. All items must pass.
 - [ ] Open any non-Google website
 - [ ] Confirm the extension has no visible effect
 
+### Over-hiding check (added in 1.1.2)
+
+- [ ] Search a query that shows **"People also ask"** with the extension
+      **ON** — e.g. `how does photosynthesis work`
+- [ ] Confirm the People-also-ask questions are **visible**, and that the
+      AI Overview above them is gone
+- [ ] Repeat the same query **3×** — page composition varies materially
+      between renders, so one pass does not clear this box
+- [ ] Confirm the other classic features on the page survived: organic
+      results, related searches, and any widget (translate, calculator,
+      unit conversion) the query would normally produce
+
 ---
 
 ## Known acceptable gaps (do not fail on these)
