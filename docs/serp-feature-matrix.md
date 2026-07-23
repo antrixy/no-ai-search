@@ -102,15 +102,20 @@ These we *want* gone. Mode A removes them by never serving them. Mode B
 must remove them via the content-script backstop on a normal SERP — so
 Mode B needs its own live check here, plus a flash observation.
 
-Mode B measured against `content.js` **as shipped in v1.1.1**, via the
-toggle-on harness described below. These rows are build-stamped: they
-must be re-run after the selector fix in Findings §4.
+Mode B measured against `content.js` at commit `<FIX-SHA>` (post-`N760b`
+removal, unreleased), via the toggle-on harness described below, with all
+other extensions removed. 3 repeats per row — see Findings §9.
 
 | AI target | Test query | Baseline (served?) | Mode A (`udm=14`) removed? | Mode B (content-script) removed? | Flash before hide? |
 |---|---|---|---|---|---|
-| AI Overview panel | `how does photosynthesis work` | Y | Y | **Y** — but over-hid PAA, see §4 | not measurable |
-| AI Overview (2nd query) | `best way to learn guitar` | Y | Y | **Y** — but over-hid PAA, see §4 | not measurable |
+| AI Overview panel | `how does photosynthesis work` | Y | Y | **Y** (3/3) | not measurable |
+| AI Overview (2nd query) | `best way to learn guitar` | Y | Y | **Y** (3/3) | not measurable |
 | AI Mode tab | any informational query | Y | Y | **Y** — content script alone, no redirect needed | — |
+
+A third query, `translate hello to spanish`, was added for the §9
+verification run because its AI Overview renders *below* People-also-ask
+(see §5) — a different DOM ordering. It passed 3/3 and is not a standing
+row; promote it if the ordering variation proves worth tracking.
 
 **Mode B harness (used in place of a build).** With no Keep-widgets build
 yet, Mode B was produced by: extension **OFF** → load a plain SERP with a
@@ -120,6 +125,11 @@ live AI Overview → toggle extension **ON** without reloading. Toggling
 non-`udm=14` SERP. This is the *only* way to reach "filtering active, no
 redirect" with the shipped build — normal use always redirects, and the
 bypass token disables filtering entirely.
+
+**Repeats are required, not optional.** Page composition on a single query
+varies materially between renders — see §9. One passing run cannot
+distinguish "correct" from "the failing variant did not render this time."
+Run each row 3×, with fresh navigations rather than reloads.
 
 **Why flash is not measurable this way.** The harness runs the scan *after*
 the page has fully loaded, so it says nothing about how long the panel is
@@ -165,6 +175,10 @@ canonical pass stands on its own; these remain open.
       time). Not run for other rows. Note that two of the three runs
       returned pixel-identical pages, suggesting a cached response rather
       than three independent samples.
+      Additionally: 3× per query on all three AI rows during the §9
+      verification run, with fresh navigations rather than reloads.
+      Panel *set* was stable across those nine runs; PAA question sets and
+      page composition were not.
 
 **Observed non-determinism at baseline** (unprompted, worth recording):
 a sponsored result appeared on one `how to boil an egg` run and vanished
@@ -242,22 +256,25 @@ reliably trigger an AI Overview — none of the current rows qualifies.
 
 ### 4. Does Mode B fully remove AI Overview + AI Mode tab? Yes — but it over-hides
 
-**Removal: works.** On both AI queries, the content script hid the AI
-Overview panel with a clean collapse — no leftover gap, first organic
-result moved up correctly. It also removed the AI Mode tab **on its own,
-with no redirect involved**, which confirms Mode B does not need `udm=14`
-to satisfy row B3.
+**Removal: works, but not as one hide.** On both AI queries the AI
+Overview collapsed cleanly — no leftover gap, first organic result moved
+up correctly. Visually one collapse; mechanically two or more disjoint
+panel hides, and the count varies by render. A fix resolving only one
+container would look correct on some renders and break on others.
+
+It also removed the AI Mode tab **on its own, with no redirect involved**,
+which confirms Mode B does not need `udm=14` to satisfy row B3.
 
 **Defect: `content.js` also hides the People-also-ask questions.**
 Reproduced 2/2 on `best way to learn guitar` and again on
 `how does photosynthesis work`. The PAA *heading* survives while its
 question list is hidden, leaving an orphaned label over dead space.
 
-**Root cause — one line.** Console inspection of elements carrying the
-extension's own `data-noaisearch-hidden-panel` marker returned two hits:
-the AI Overview wrapper (`jsname="ZLxsqf"`, correct) and the PAA container
-(`jsname="N760b"`, wrong). That second value is a hardcoded entry in
-`SELECTORS`:
+**Root cause — one line.** Console inspection on `best way to learn
+guitar`, reading the extension's own `data-noaisearch-hidden-panel`
+marker, returned two hits on that render: the AI Overview wrapper
+(`jsname="ZLxsqf"`, correct) and the PAA container (`jsname="N760b"`,
+wrong). That second value is a hardcoded entry in `SELECTORS`:
 
 ```js
 'div[jsname="N760b"]',   // now matches the PAA container
@@ -274,6 +291,14 @@ outline covered the AI Overview exactly and stopped above the first
 organic result. **Removing the `N760b` selector fixes the bug with no
 loss of detection coverage.**
 
+Two corrections to that validation, from the §9 run. `AI headings
+found: 1` is a property of one render, not a general result — other
+renders resolve two containers. And the `contains PAA?` check is
+unreliable: it looks for a `role="heading"` reading "People also ask",
+which sits *outside* the question container, so it returns `false` even
+for a container that does hold the questions. The conclusion stands on
+the `text starts` output and the visual outline; not on that flag.
+
 **This is a v1.1.1 bug, not merely a Mode B concern.** The over-hiding
 occurs whenever the content script runs on a non-`udm=14` SERP — which in
 shipped use happens every time a user toggles the extension on with a
@@ -285,7 +310,8 @@ comment warns these attributes "get renamed often", and a previous `bard`
 substring selector was already removed for related reasons. That argues
 for dropping attribute-based detection entirely rather than patching
 values one at a time — heading-text detection has now been shown
-sufficient on live markup.
+sufficient on live markup. §9 measures how little the remaining entries
+contribute.
 
 ### 5. Flash severity in Mode B: NOT MEASURED
 
@@ -321,6 +347,10 @@ turned out still localised; sports snippets turned out to carry no scores
 at all). Fallback quality has to be read off each page, not inferred from
 the nature of the data.
 
+*The pre-run predictions this calibration finding refers to were the Notes
+column of Table A before the 2026-07-22 run; they were overwritten by
+results in that commit and survive in `<PRE-RUN-SHA>`.*
+
 ### 7. Popup false positive on toggle-on
 
 Enabling the extension while any SERP with AI content is open fires
@@ -333,12 +363,20 @@ Users will hit this constantly and read it as a malfunction. Suppress
 reports originating from a toggle-triggered scan as distinct from a
 page-load scan. v1.2 fix, cheap.
 
+Confirmed as a running annoyance during the §9 verification run: the
+warning fired on all nine toggle-ons and had to be explicitly disregarded
+each time.
+
 ### 8. Instrument corrections for the next revision
 
 - Row label: **"These are results for"**, not "Showing results for".
 - Add **People also ask** as a row — appeared at baseline on most queries,
   is a Web-tab casualty, and is currently only visible in this run as
-  collateral damage from a bug.
+  collateral damage from a bug. *Still outstanding:* §9 confirms PAA
+  survives in Mode B but did not load a `udm=14` page, so the Mode A cell
+  has no measurement. Three `udm=14` loads would complete the row and, if
+  it flips as expected, move §1's headline from twelve features to
+  thirteen.
 - Add a **nesting column** — which rows share a page or a component with
   another feature (see §1).
 - Add a **substitute-quality column** — the tiers in §6.
@@ -348,6 +386,89 @@ page-load scan. v1.2 fix, cheap.
   informational-query gated.
 - Document the **toggle-on harness** as the standing Mode B method until a
   build exists (now recorded under Table B).
+- Record **panel counts per render**, not just pass/fail, on any AI row —
+  §9 shows the count is the informative variable.
+
+### 9. Post-fix verification run (2026-07-22, second session)
+
+`div[jsname="N760b"]` removed from `SELECTORS` in `<FIX-SHA>`. Re-run of
+the Table B rows under the toggle-on harness: desktop, signed in, US,
+Chrome, **all other extensions removed**, unpacked build loaded from the
+fixed commit.
+
+**9/9 runs pass** — 3 queries × 3 repeats:
+
+| query | runs | hidden panels | `N760b` | PAA visible | collapse |
+|---|---|---|---|---|---|
+| `how does photosynthesis work` | 3 | `ZLxsqf`, `oQYOj` | absent | yes | clean |
+| `best way to learn guitar` | 3 | `ZLxsqf`, `oQYOj` | absent | yes | clean |
+| `translate hello to spanish` | 3 | `oQYOj`, `ZLxsqf` | absent | yes | clean |
+
+`udm param: none` on every run. Every panel reported `nesting: leaf` — the
+AI Overview is rendered as **disjoint sibling blocks, not a wrapper with
+children**. Confirmed directly:
+
+```js
+document.querySelector('div[jsname="ZLxsqf"]')
+  .contains(document.querySelector('div[jsname="N760b"]'))   // false
+```
+
+**`oQYOj` identified: an AI answer attached to the People-also-ask block.**
+Not a second copy of the main overview. Its text tracks the *first PAA
+question* on the page, across renders and queries:
+
+| first PAA question | `oQYOj` text begins |
+|---|---|
+| What country says halo? | Saying "Halo" is a common, informal greeting |
+| What do Mexicans say when they pick up the phone? | Mexicans most commonly answer the phone by s… |
+| Can I teach myself to play guitar? | Yes, you can absolutely teach yourself to pl… |
+
+It carries its own `AI Overview` heading, so the heading-text path resolves
+it correctly and hiding it is correct behaviour. Its presence is
+*conditional*, not random: it appears when the top PAA question has an AI
+answer attached. This is the boundary the extension now draws — the AI
+answer on PAA is hidden, the PAA questions themselves are not. Directly
+relevant to issue #1.
+
+**`SELECTORS` measured as dead weight.** A path-separating probe on
+`how does photosynthesis work` (extension off) found three of four entries
+matched nothing, while the fourth matched the wrong element:
+
+| selector | matches |
+|---|---|
+| `div[data-attrid="AIOverview"]` | 0 |
+| `div[jsname="N760b"]` | 1 — wrong element (PAA container) |
+| `[aria-label="AI Overview"]` | 0 |
+| `[aria-label*="AI Mode" i]` | 0 |
+
+The last despite the AI Mode tab being present on the page — that tab is
+hidden by `hideAiModeTab()`'s text matching, not by `SELECTORS`.
+Heading-text detection resolved the correct panel unaided on the same
+page. §4's "second instance of the same failure mode" argument now has
+direct measurement behind it, not only precedent.
+
+**Widget preservation demonstrated live.** On `translate hello to spanish`
+with filtering active, the translate widget — language dropdowns,
+hello → Hola, alternates list, "Open in Google Translate" — survived
+intact alongside the PAA block. Table A's baseline ≡ Mode B equivalence
+was an inference from the mechanism; this is a direct observation of it.
+
+**Autocorrect, third confirmation.** Two runs used accidental typos
+(`guitat`, `tto`). Both produced "These are results for…", neither
+rewrote the URL, and neither disturbed panel resolution. Consistent
+with §2.
+
+**Render variance, quantified.** Four distinct layouts appeared on
+`how does photosynthesis work` across runs — right-rail sources card
+present or absent, Short videos carousel, "People also search for" — and
+PAA question sets changed between consecutive runs of the same query. The
+*panel set the fix depends on* was stable across all nine runs; page
+composition around it was not.
+
+**What this run does not establish.** Nine samples of a distribution that
+cannot be enumerated. The fix held on every render observed; that is not
+the same as proof it cannot fail. Flash remains unmeasured (§5), and the
+PAA row still has no Mode A measurement (§8).
 
 ## Decision
 
