@@ -13,5 +13,5 @@ Single-fix patch release. No new features, no permission changes, no settings ch
 ## Notes
 - No new permissions. Still only `storage` and `declarativeNetRequest`, scoped to Google Search pages.
 - Existing settings (on/off toggle, "Show AI Mode tab") are preserved across the update.
-- **Chrome Web Store rollout is pending.** This tag is published ahead of store review, so the store may still serve 1.1.1 for a while. Check the version shown in the extension's popup to see which build you actually have.
+- **Live on the Chrome Web Store.** This tag was published ahead of store review; 1.1.2 has since been approved and installed copies update automatically. To check which build you have, open `chrome://extensions` — the version is shown under the extension name.
 - The fix is a one-line deletion in `content.js`. Full measurement detail is in `docs/serp-feature-matrix.md` §9.
