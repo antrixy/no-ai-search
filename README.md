@@ -99,5 +99,4 @@ See [`docs/PRIVACY.md`](docs/PRIVACY.md) for the full privacy policy.
 
 ## License
 
-<!-- TODO: pick a license and add a LICENSE file. MIT is a common choice for a tool like this. -->
-_License to be finalized — see `LICENSE`._
+MIT — see [`LICENSE`](LICENSE).
