@@ -15,8 +15,12 @@
 // allowlist, which is the only way that staleness surfaces before a user
 // reports it.
 //
-// Verified against extension source at content.js sha256 786de292...
-// (tree V1.1.2, identical to main).
+// SOURCE OF THE COPIED CONSTANTS: background.js, NOT content.js.
+// An earlier version of this header cited a content.js hash, which was simply
+// wrong — SAFE_VERTICAL_UDM_VALUES and BYPASS_PARAM both live in background.js.
+// Pinned below and guarded by .github/workflows/probe-freshness.yml, so a
+// change to the allowlist can no longer leave this probe silently checking
+// against rules the extension has stopped using.
 //
 // RUN WITH THE EXTENSION ON, on a Google results page.
 //
@@ -32,9 +36,16 @@
 //   deliberate safe-vertical and bypass rows.
 // ---------------------------------------------------------------------
 
+const BACKGROUND_JS_SHA256 = "9ac41afe8e322cc32edfe34b9d199b3831ce6e6577778d05534506fab7c8410d";
+
 (() => {
-  // Copied verbatim from background.js. If that list changes, this must too.
-  const SAFE_VERTICAL_UDM_VALUES = [2, 6, 7, 12, 15, 18, 28, 36, 37, 44, 48];
+  // Copied verbatim from background.js @ BACKGROUND_JS_SHA256.
+  // STRINGS, not numbers. The shipping rule matches a literal RE2 alternation
+  // — udm=(2|6|7|...) — so "02" does NOT match in production. Number("02")===2
+  // made the old probe call it allowlisted, i.e. laxer than the rule it checks.
+  // An evidence probe must be at least as strict as production.
+  const SAFE_VERTICAL_UDM_VALUES = new Set(
+    ["2", "6", "7", "12", "15", "18", "28", "36", "37", "44", "48"]);
   const BYPASS_PARAM = 'show_ai_overview';
 
   const params = new URLSearchParams(location.search);
@@ -54,8 +65,7 @@
     console.log('%cNo udm on a search URL — the redirect did not fire here.', 'color:crimson;font-weight:bold');
     console.log('Expected if you toggled the extension on without reloading. Otherwise a finding.');
   } else {
-    const n = Number(udm);
-    console.log(SAFE_VERTICAL_UDM_VALUES.includes(n)
+    console.log(SAFE_VERTICAL_UDM_VALUES.has(udm)
       ? `udm=${udm} is an allowlisted safe vertical — pass-through is correct here.`
       : `%cudm=${udm} is neither 14 nor allowlisted.`, 'color:crimson');
   }
@@ -85,14 +95,13 @@
 
   const rows = [...codes.entries()]
     .map(([code, labels]) => {
-      const n = Number(code);
       return {
         udm: code,
         labels: [...labels].join(', '),
         verdict:
           code === '14' ? 'Web — the redirect target'
-          : code === '50' ? 'AI Mode — redirected away, correct'
-          : SAFE_VERTICAL_UDM_VALUES.includes(n) ? 'allowlisted — passes through'
+          : code === '50' ? 'AI Mode — expected redirect away (UNVERIFIED, see matrix)'
+          : SAFE_VERTICAL_UDM_VALUES.has(code) ? 'allowlisted — passes through'
           : 'NOT ALLOWLISTED — would be bounced to Web',
       };
     })
@@ -128,7 +137,15 @@
     { step: '5', do: 'Click any tab flagged NOT ALLOWLISTED above', expect: 'bounced to Web — confirms the gap' },
     { step: '6', do: 'Click "Show AI Overview for this search" in the banner', expect: 'no udm, token present, AI Overview visible' },
     { step: '7', do: 'Reuse that same bypass URL after a browser restart', expect: 'token stale — redirect applies again' },
+    { step: '8a', do: 'Type https://www.google.com/search?q=test&udm=50 directly', expect: 'UNRESOLVED — record what happens' },
+    { step: '8b', do: 'Click Google\'s in-page AI Mode tab (set "show AI Mode tab" ON first)', expect: 'UNRESOLVED — record separately from 8a' },
   ]);
+  console.log('Steps 8a and 8b settle a live contradiction in the repo. content.js says');
+  console.log('a manually navigated udm=50 URL "would reach AI Mode unhindered", but the');
+  console.log('DNR rule matches main_frame GETs to /search? and 50 is not allowlisted, so it');
+  console.log('should be redirected. Chrome docs note DNR applies to requests reaching the');
+  console.log('network stack and may not cover service-worker-handled navigation — which');
+  console.log('would explain 8b but not 8a. They are two different claims. Test both.');
   console.log('Step 7 is the one most likely to be skipped and the only test of');
   console.log('per-session token regeneration. It needs a full browser restart.');
 })();

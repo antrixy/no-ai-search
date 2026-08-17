@@ -137,9 +137,14 @@ const CONTENT_JS_SHA256 = "786de2928d464f6b937497ddf11341c220394562c92b1f4ef0999
     || /\/httpservice\/retry\/enablejs/i.test(document.documentElement.innerHTML.slice(0, 20000));
 
   const hosts = new Set();
-  document.querySelectorAll('a[href^="http"]').forEach((a) => {
+  // a[href] rather than a[href^="http"]: Google's legacy redirector appears as
+  // a RELATIVE href (/url?q=...), which an ^="http" attribute selector cannot
+  // match — so the unwrap branch below was unreachable in the first version of
+  // this file. Resolve against location.href instead, then unwrap.
+  document.querySelectorAll('a[href]').forEach((a) => {
     let u;
-    try { u = new URL(a.href); } catch { return; }
+    try { u = new URL(a.getAttribute('href'), location.href); } catch { return; }
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return;
     // Unwrap the legacy /url?q= redirector if Google is still using it.
     if (/(^|\.)google\.[a-z.]+$/i.test(u.hostname) && u.pathname === '/url') {
       const inner = u.searchParams.get('q') || u.searchParams.get('url');
@@ -155,18 +160,35 @@ const CONTENT_JS_SHA256 = "786de2928d464f6b937497ddf11341c220394562c92b1f4ef0999
   const interstitial = /\/sorry\/|\/httpservice\/|consent\./i.test(location.href);
   const titleEcho = q ? document.title.toLowerCase().includes(q.toLowerCase().slice(0, 24)) : false;
 
+  // LIVENESS SIGNALS — independent of Google's internal markup.
+  //
+  // An earlier version of this file gated liveness on `data-hveid > 0` and
+  // `role="heading" > 0`. That was wrong, and wrong in the specific way
+  // monitoring-feasibility.md warns about: `role="heading"` IS the detection
+  // path being monitored. A Google relabel would have broken the detector and
+  // the liveness probe together, reporting "NOT LIVE" — blocked — instead of
+  // "the detector no longer matches" — the finding. A liveness oracle built
+  // from the thing under test fails on the same day the thing under test does.
+  //
+  // These four depend only on the transport and the query, not on Google's
+  // result markup, so they can still classify the run correctly on the exact
+  // day the markup changes.
   const signals = [
     { signal: 'not an interstitial path', value: String(!interstitial), ok: !interstitial },
     { signal: 'status 200', value: status === null ? 'unavailable' : String(status), ok: status === null || status === 200 },
     { signal: 'query echoed in <title>', value: String(titleEcho), ok: titleEcho },
     { signal: 'no enablejs gate markers', value: String(!enablejs), ok: !enablejs },
-    { signal: 'data-hveid blocks', value: String(hveidCount), ok: hveidCount > 0 },
-    { signal: 'role="heading" elements', value: String(headingCount), ok: headingCount > 0 },
     { signal: 'distinct external hostnames', value: String(hosts.size), ok: K_MIN === null ? true : hosts.size >= K_MIN },
   ];
 
   console.log('%c0. Liveness', 'font-weight:bold');
   console.table(signals);
+
+  // Observations, NOT liveness prerequisites. Recorded because a sudden drop
+  // to zero here is informative — but it is evidence about Google's markup,
+  // which is the subject of the test, so it must never gate the verdict.
+  console.log('markup observations (not gating):',
+    { 'data-hveid': hveidCount, 'role="heading"': headingCount });
   console.log('udm:', udm ?? 'none', '| K_MIN:', K_MIN === null ? 'UNSET (calibration mode)' : K_MIN);
   if (udm === '14') console.warn('udm=14: no AI Overview renders here. Load a plain SERP with the extension OFF.');
 
