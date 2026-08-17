@@ -1,0 +1,64 @@
+# .github/workflows/probe-freshness.yml
+#
+# docs/monitoring/heading-detection-dryrun.js copies HEADING_TEXT_PATTERNS
+# and climbToPanel() verbatim from content.js, because a probe cannot test
+# whether a pattern still matches without evaluating that pattern. The copy
+# is correct only for one specific version of content.js.
+#
+# Without a guard, editing content.js leaves a plausible-looking probe in
+# docs/ testing rules the extension no longer uses — silent drift, and the
+# exact failure docs/inspect-hidden-panels.js was written to avoid. This
+# turns that into a red check.
+#
+# When this fails: re-sync the verbatim block in the probe, then update
+# CONTENT_JS_SHA256 to the new hash. Do not update the hash alone.
+
+name: probe freshness
+
+on:
+  push:
+    paths:
+      - 'no-ai-search/content.js'
+      - 'docs/monitoring/heading-detection-dryrun.js'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: probe is pinned to the current content.js
+        run: |
+          set -euo pipefail
+          PROBE=docs/monitoring/heading-detection-dryrun.js
+          SOURCE=no-ai-search/content.js
+
+          ACTUAL=$(sha256sum "$SOURCE" | cut -d' ' -f1)
+          PINNED=$(grep -oE 'CONTENT_JS_SHA256 = "[0-9a-f]{64}"' "$PROBE" \
+                   | grep -oE '[0-9a-f]{64}' || true)
+
+          if [ -z "$PINNED" ]; then
+            echo "::error file=$PROBE::No CONTENT_JS_SHA256 pin found."
+            exit 1
+          fi
+
+          if [ "$ACTUAL" != "$PINNED" ]; then
+            echo "::error file=$PROBE::Probe is stale — it copies detection logic from $SOURCE, which has changed."
+            echo "  pinned: $PINNED"
+            echo "  actual: $ACTUAL"
+            echo "Re-sync the verbatim block, then update the pin."
+            exit 1
+          fi
+
+          echo "Probe pinned to current $SOURCE ($ACTUAL)."
+
+      - name: probes parse
+        run: |
+          set -euo pipefail
+          for f in docs/monitoring/*.js docs/inspect-hidden-panels.js; do
+            [ -e "$f" ] || continue
+            node --check "$f"
+            echo "ok: $f"
+          done
