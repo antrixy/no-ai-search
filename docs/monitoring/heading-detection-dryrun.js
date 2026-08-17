@@ -1,4 +1,5 @@
 // No AI Search — heading detection dry run (READ-ONLY, hides nothing)
+// docs/monitoring/heading-detection-dryrun.js
 //
 // Tests the path content.js actually relies on: HEADING_TEXT_PATTERNS
 // matched against role="heading" text, then resolved to a container via
@@ -8,50 +9,74 @@
 // for going bad.
 //
 // Checks both failure directions:
-//   UNDER-MATCH — Google relabels the panel and no pattern matches. This
-//     is the silent one: detection just stops, nothing visibly breaks.
+//   UNDER-MATCH — Google relabels the panel and no pattern matches. Silent:
+//     detection just stops and nothing visibly breaks.
 //   OVER-MATCH  — the resolved container swallows a neighbouring block.
-//     This is what shipped in v1.1.1 (PAA over-hiding, fixed in 1.1.2).
+//     Shipped in v1.1.1 as the PAA over-hide, fixed in 1.1.2.
 //
 // ---------------------------------------------------------------------
+// LIVENESS GATE — why section 0 exists
+//
+// docs/monitoring/monitoring-feasibility.md records that a fetch-based
+// version of this check is impossible: Google gates /search behind JS
+// execution and returns a 200, ~92 KB script shell with zero data-hveid
+// and zero role="heading". Searching that document for "AI Overview"
+// returns 0, which a naive check scores as a PASS — forever, from a page
+// with no search results on it.
+//
+// This script runs in a real browser, so it clears the JS gate by
+// construction. But it inherits the same structural flaw: "no AI heading
+// matched" is ALSO what a page with no AI Overview on it looks like.
+// Per the standard that document sets, no assertion below carries a
+// verdict until liveness passes.
+//
+// K is deliberately unset. The feasibility doc could not measure it — the
+// value requires a document with real external destinations, and no such
+// document was ever obtained by fetch. This script is the first thing
+// able to measure it. Run in calibration mode across the three query
+// shapes, take the floor, subtract margin, set K_MIN below.
+// ---------------------------------------------------------------------
+//
 // A NOTE ON DUPLICATION, because the repo warns about exactly this.
 //
-// docs/inspect-hidden-panels.js deliberately reads the extension's own
-// marker attribute rather than re-deriving matching rules, and says to
-// prefer it over "any probe that copies the matching rules." This script
-// IS such a probe, and it copies them on purpose: you cannot test whether
-// a pattern still matches without evaluating the pattern. The trade-off
-// is real — this file goes stale the moment content.js changes.
+// docs/inspect-hidden-panels.js reads the extension's own marker attribute
+// rather than re-deriving matching rules, and says to prefer it over "any
+// probe that copies the matching rules." This script IS such a probe and
+// copies them deliberately: you cannot test whether a pattern still
+// matches without evaluating the pattern. The trade-off is real — this
+// file goes stale the moment content.js changes.
 //
-// Mitigations: everything below is copied verbatim from content.js at
-// sha256 786de292... (tree V1.1.2, byte-identical to main), and the two
-// scripts are meant to be run as a pair — this one PREDICTS what would be
-// hidden, inspect-hidden-panels.js then OBSERVES what actually was. If
-// the prediction and the observation disagree, this file has drifted and
-// the observer is right.
-// ---------------------------------------------------------------------
-//
+// Mitigations: everything in the verbatim block is copied unmodified from
+// content.js at the sha pinned below, guarded by .github/workflows/
+// probe-freshness.yml; and the two scripts are run as a pair — this one
+// PREDICTS what would be hidden, inspect-hidden-panels.js then OBSERVES
+// what actually was. If they disagree, this file has drifted and the
+// observer is right.
+
+const CONTENT_JS_SHA256 = "786de2928d464f6b937497ddf11341c220394562c92b1f4ef0999f3c0eb1ac5d";
+
 // RUN CONDITIONS — these matter:
 //   Extension OFF, on a plain SERP (no udm=14) with a live AI Overview.
-//   Under udm=14 there is no AI Overview to detect and this reports
-//   nothing. With the extension ON, panels are display:none and
-//   climbToPanel's getBoundingClientRect height check reads 0, so the
-//   container it resolves would not be the one it resolves in real use.
+//   Under udm=14 there is no AI Overview to detect. With the extension ON,
+//   panels are display:none and climbToPanel's getBoundingClientRect
+//   height check reads 0, so it resolves a container it would not resolve
+//   in real use.
 //
 // PRE-REGISTER BEFORE RUNNING:
-//   P1. AI headings matched on this page: ______ (expect 1)
+//   P0. Distinct external result hostnames on this page: ______
+//   P1. AI headings matched: ______ (expect 1)
 //   P2. Resolution route: ______ (expect data-hveid ancestor, not climb)
 //   P3. Container will contain a PAA block: ______ (expect false)
 //   P4. SELECTORS entries matching anything: ______
 //
-//   Falsifier for "detection is healthy": zero matched headings on a page
-//   where an AI Overview is plainly visible.
-//   P4 is the live question from issue-paa-overhide.md: if the three
+//   Falsifier for "detection is healthy": zero matched headings on a
+//   LIVE page with an AI Overview plainly visible on screen.
+//   P4 is the open question from issue-paa-overhide.md: if the three
 //   remaining selectors match nothing across every query shape, that is
 //   evidence for deleting them rather than a regression.
 
 (() => {
-  // ---- verbatim from content.js ----
+  // ---- verbatim from content.js @ CONTENT_JS_SHA256 ----
   const SELECTORS = [
     'div[data-attrid="AIOverview"]',
     '[aria-label="AI Overview"]',
@@ -83,23 +108,94 @@
   }
   // ---- end verbatim ----
 
-  // From docs/inspect-hidden-panels.js: wrappers open with an inlined
-  // <style> block, so raw textContent prefixes are unreadable.
+  // Set from calibration runs. null = uncalibrated; verdicts withheld.
+  const K_MIN = null;
+
+  // Google-owned hosts do not count toward K — the signal is destinations
+  // OFF Google, which is what the gate page has none of.
+  const GOOGLE_HOSTS = /(^|\.)(google\.[a-z.]+|gstatic\.com|googleusercontent\.com|googleapis\.com|youtube\.com|withgoogle\.com|blogger\.com|goo\.gl)$/i;
+
   const cleanText = (el) => {
     const clone = el.cloneNode(true);
     clone.querySelectorAll('style, script').forEach((n) => n.remove());
     return (clone.textContent || '').replace(/\s+/g, ' ').trim();
   };
 
-  const udm = new URLSearchParams(location.search).get('udm');
-  const alreadyHidden = document.querySelectorAll('[data-noaisearch-hidden-panel]').length;
-
+  // ================= 0. LIVENESS =================
   console.log('%c=== No AI Search — heading detection dry run ===', 'font-weight:bold');
-  console.log('udm:', udm ?? 'none', '| headings on page:', document.querySelectorAll('[role="heading"]').length);
-  if (udm === '14') console.warn('udm=14: no AI Overview renders here. Load a plain SERP with the extension OFF.');
-  if (alreadyHidden) console.warn(`${alreadyHidden} panel(s) already hidden — turn the extension OFF and reload, or container scope will be wrong.`);
 
-  // ---------------- 1. Heading matches ----------------
+  const params = new URLSearchParams(location.search);
+  const q = params.get('q') || '';
+  const udm = params.get('udm');
+
+  // Structural signals. Per the fixtures README, only structure catches
+  // the JS gate — status, body size and interstitial strings all pass it.
+  const hveidCount = document.querySelectorAll('[data-hveid]').length;
+  const headingCount = document.querySelectorAll('[role="heading"]').length;
+  const metaRefresh = document.querySelector('meta[http-equiv="refresh" i]');
+  const enablejs = !!(metaRefresh && /enablejs/i.test(metaRefresh.getAttribute('content') || ''))
+    || /\/httpservice\/retry\/enablejs/i.test(document.documentElement.innerHTML.slice(0, 20000));
+
+  const hosts = new Set();
+  document.querySelectorAll('a[href^="http"]').forEach((a) => {
+    let u;
+    try { u = new URL(a.href); } catch { return; }
+    // Unwrap the legacy /url?q= redirector if Google is still using it.
+    if (/(^|\.)google\.[a-z.]+$/i.test(u.hostname) && u.pathname === '/url') {
+      const inner = u.searchParams.get('q') || u.searchParams.get('url');
+      if (inner) { try { u = new URL(inner); } catch { return; } }
+    }
+    if (!GOOGLE_HOSTS.test(u.hostname)) hosts.add(u.hostname);
+  });
+
+  // The doc's definition: not an interstitial path, status 200, query
+  // echoed in the title, and at least K external result hostnames.
+  const nav = performance.getEntriesByType('navigation')[0];
+  const status = nav && typeof nav.responseStatus === 'number' ? nav.responseStatus : null;
+  const interstitial = /\/sorry\/|\/httpservice\/|consent\./i.test(location.href);
+  const titleEcho = q ? document.title.toLowerCase().includes(q.toLowerCase().slice(0, 24)) : false;
+
+  const signals = [
+    { signal: 'not an interstitial path', value: String(!interstitial), ok: !interstitial },
+    { signal: 'status 200', value: status === null ? 'unavailable' : String(status), ok: status === null || status === 200 },
+    { signal: 'query echoed in <title>', value: String(titleEcho), ok: titleEcho },
+    { signal: 'no enablejs gate markers', value: String(!enablejs), ok: !enablejs },
+    { signal: 'data-hveid blocks', value: String(hveidCount), ok: hveidCount > 0 },
+    { signal: 'role="heading" elements', value: String(headingCount), ok: headingCount > 0 },
+    { signal: 'distinct external hostnames', value: String(hosts.size), ok: K_MIN === null ? true : hosts.size >= K_MIN },
+  ];
+
+  console.log('%c0. Liveness', 'font-weight:bold');
+  console.table(signals);
+  console.log('udm:', udm ?? 'none', '| K_MIN:', K_MIN === null ? 'UNSET (calibration mode)' : K_MIN);
+  if (udm === '14') console.warn('udm=14: no AI Overview renders here. Load a plain SERP with the extension OFF.');
+
+  const hidden = document.querySelectorAll('[data-noaisearch-hidden-panel]').length;
+  if (hidden) console.warn(`${hidden} panel(s) already hidden — turn the extension OFF and reload, or container scope will be wrong.`);
+
+  const failed = signals.filter((s) => !s.ok);
+  const LIVE = failed.length === 0;
+
+  if (!LIVE) {
+    console.log('%cNOT LIVE — ' + failed.map((s) => s.signal).join(', '),
+      'color:crimson;font-weight:bold');
+    console.log('No verdict is available from this run. Everything below is inert on a');
+    console.log('page that is not a real results page — in both directions. Fix the page,');
+    console.log('then re-run. Do not record this as evidence.');
+    return;
+  }
+
+  if (K_MIN === null) {
+    console.log('%cCALIBRATION RUN — liveness structurally OK, K unset.', 'color:darkorange;font-weight:bold');
+    console.log(`Distinct external hostnames here: ${hosts.size}`);
+    console.log('Run the three query shapes, take the floor, subtract margin, set K_MIN.');
+    console.log('Sections below are OBSERVATIONS ONLY and are not evidence until K is set.');
+    console.log('Hostnames:', [...hosts].sort());
+  } else {
+    console.log('%cLIVE — verdicts below are valid.', 'color:green;font-weight:bold');
+  }
+
+  // ================= 1. Heading matches =================
   const headings = [...document.querySelectorAll('[role="heading"]')];
   const matched = [];
 
@@ -107,21 +203,19 @@
     const text = (el.textContent || '').trim();
     const hitIdx = HEADING_TEXT_PATTERNS.findIndex((re) => re.test(text));
     if (hitIdx === -1) return;
-
     const viaHveid = el.closest('[data-hveid]');
     const container = viaHveid || climbToPanel(el, MAX_CLIMB_LEVELS);
     const inner = [...container.querySelectorAll('[role="heading"]')]
       .map((h) => (h.textContent || '').trim()).filter(Boolean);
-
     matched.push({ el, text, hitIdx, viaHveid: !!viaHveid, container, inner });
   });
 
   console.log('%c1. Headings matched by HEADING_TEXT_PATTERNS', 'font-weight:bold', `— ${matched.length}`);
   if (!matched.length) {
-    console.log('%cNo AI heading matched.', 'color:crimson;font-weight:bold');
+    console.log('%cNo AI heading matched on a LIVE page.', 'color:crimson;font-weight:bold');
     console.log('If an AI Overview is visible on screen right now, the patterns have gone');
-    console.log('stale and detection is dead — that is the finding. If no AI Overview is');
-    console.log('present, this page simply had nothing to detect. Check the page, not the log.');
+    console.log('stale and primary detection is dead. If none is visible, this page had');
+    console.log('nothing to detect — not a finding, and not a pass either.');
   }
 
   matched.forEach((m, i) => {
@@ -139,16 +233,13 @@
   });
 
   if (matched.length) {
-    console.log('Read `text starts` yourself — no automatic verdict. Per the note in');
-    console.log('inspect-hidden-panels.js, three heuristics for this were tried against');
-    console.log('live markup and all three failed. A correctly scoped panel opens with AI');
-    console.log('Overview content or Google\'s "not available for this search" placeholder.');
+    console.log('Read `text starts` yourself — no automatic verdict. Three heuristics for');
+    console.log('this were tried against live markup and all three failed; see the note in');
+    console.log('inspect-hidden-panels.js. A correctly scoped panel opens with AI Overview');
+    console.log('content or Google\'s "not available for this search" placeholder.');
   }
 
-  // ---------------- 2. Near-miss headings ----------------
-  // Under-match candidates: headings that look AI-related to a human but
-  // that no pattern caught. This is what pattern rot looks like before
-  // anyone notices detection stopped.
+  // ================= 2. Near-miss headings =================
   const AI_TOKENS = /\b(AI|A\.I\.|Gemini|IA|KI|overview|übersicht|aperçu|visão|visión)\b/i;
   const nearMiss = headings
     .filter((el) => !matched.some((m) => m.el === el))
@@ -157,16 +248,13 @@
 
   console.log('%c2. Unmatched headings containing AI-ish tokens', 'font-weight:bold', `— ${nearMiss.length}`);
   if (nearMiss.length) {
-    console.log('%cReview these — a relabelled panel would appear here, not in section 1.', 'color:darkorange');
+    console.log('%cReview these — a relabelled panel appears here, not in section 1.', 'color:darkorange');
     console.table([...new Set(nearMiss)].map((t) => ({ heading: t.slice(0, 80) })));
   } else {
     console.log('None. No sign of a heading the patterns should have caught.');
   }
 
-  // ---------------- 3. SELECTORS over-match ----------------
-  // The v1.1.1 direction: an attribute value Google reassigned to an
-  // unrelated element. A non-zero count here is not automatically healthy
-  // — read what it matched.
+  // ================= 3. SELECTORS over-match =================
   console.log('%c3. SELECTORS — what each currently matches', 'font-weight:bold');
   SELECTORS.forEach((sel) => {
     let nodes = [];
@@ -176,16 +264,13 @@
       console.log(`%c${sel} — ${e.name}: no longer parses in this Chrome`, 'color:crimson');
       return;
     }
-    if (!nodes.length) {
-      console.log(`${sel} — 0 matches`);
-      return;
-    }
+    if (!nodes.length) { console.log(`${sel} — 0 matches`); return; }
     console.group(`${sel} — ${nodes.length} match(es)`);
     nodes.forEach((n, i) => {
-      const insideAi = matched.some((m) => m.container.contains(n) || n.contains(m.container));
+      const overlaps = matched.some((m) => m.container.contains(n) || n.contains(m.container));
       console.log(`[${i}] <${n.tagName.toLowerCase()}> jsname=${n.getAttribute('jsname') || '—'}`);
       console.log('    text starts:', cleanText(n).slice(0, 120) || '(empty)');
-      console.log('    overlaps a heading-detected panel:', insideAi ? 'yes' : '%cNO — matching something the heading path did not', insideAi ? '' : 'color:crimson');
+      console.log('    overlaps a heading-detected panel:', overlaps ? 'yes' : 'NO — matching something the heading path did not');
       console.log('   ', n);
     });
     console.groupEnd();
