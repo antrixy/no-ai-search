@@ -116,6 +116,16 @@ const HIDDEN_PANEL_MARKER = "data-noaisearch-hidden-panel";
 
 let observer = null;
 let reported = false;
+// Whether a hide on this page should be treated as evidence the redirect
+// failed. True during normal page-load filtering; false when filtering is
+// applied because the user just toggled the extension on over an already
+// loaded page, where hiding AI content is expected rather than a symptom.
+let treatHidesAsDrift = false;
+// The master switch, tracked explicitly rather than read at each call site.
+// Every page-affecting decision now derives from these three together — see
+// applyPageState() — so the secondary AI Mode preference can no longer act on
+// the page while the master switch is off.
+let enabledSetting = true;
 // Set once at load: true only when this exact page was opened via an
 // authorized "Show AI Overview" link for the current session. When true,
 // every filtering path below no-ops — the user asked to see AI here.
@@ -138,21 +148,42 @@ function isWebResultsView() {
   return new URLSearchParams(window.location.search).get("udm") === "14";
 }
 
+// Returns true only if this call actually changed the page.
+//
+// Previously the fallback report fired on every call, including when the node
+// was already display:none and nothing was done — so "backup filter caught
+// something" in the popup could mean the backstop had hidden nothing at all.
+// Reporting is now the caller's decision, based on a real hide (see
+// reportFallback and treatHidesAsDrift).
 function hide(node) {
-  if (node.getAttribute && node.getAttribute(HIDDEN_PANEL_MARKER)) return; // already hidden by us
-  if (node.style && node.style.display !== "none") {
-    node.dataset.noaisearchPrevDisplay = node.style.display || "";
-    node.style.setProperty("display", "none", "important");
-    node.setAttribute(HIDDEN_PANEL_MARKER, "1");
-  }
-  // Tell background.js the redirect didn't fully do its job here, so the
-  // popup can surface that instead of silently degrading. Only once per
-  // page — this is a signal, not a counter. (Never reached on an
-  // authorized bypass page: filtering never runs there.)
-  if (!reported) {
-    reported = true;
-    chrome.runtime.sendMessage({ type: "ai_content_detected" }).catch(() => {});
-  }
+  if (node.getAttribute && node.getAttribute(HIDDEN_PANEL_MARKER)) return false; // already hidden by us
+  if (!node.style || node.style.display === "none") return false; // nothing to do
+  node.dataset.noaisearchPrevDisplay = node.style.display || "";
+  node.style.setProperty("display", "none", "important");
+  node.setAttribute(HIDDEN_PANEL_MARKER, "1");
+  return true;
+}
+
+// Hides every node and reports ONCE if any hide was real AND this application
+// is one where a hide is evidence the redirect failed.
+//
+// Toggling the extension on over an already-loaded plain SERP hides AI content
+// by design — the user asked for it — and is not drift. Only a hide during
+// normal page-load filtering means the redirect didn't do its job.
+function hideAll(nodes) {
+  let didHide = false;
+  nodes.forEach((n) => { if (hide(n)) didHide = true; });
+  if (didHide && treatHidesAsDrift) reportFallback();
+}
+
+// Tell background.js the redirect didn't fully do its job here, so the popup
+// can surface that instead of silently degrading. Only once per page — this is
+// a signal, not a counter. (Never reached on an authorized bypass page:
+// filtering never runs there.)
+function reportFallback() {
+  if (reported) return;
+  reported = true;
+  chrome.runtime.sendMessage({ type: "ai_content_detected" }).catch(() => {});
 }
 
 // Undoes every panel hide() performed on this page — used when the user
@@ -291,10 +322,10 @@ function initialScan() {
     } catch (e) {
       continue; // selector syntax unsupported in this browser, skip it
     }
-    nodes.forEach(hide);
+    hideAll(nodes);
   }
-  scanForHeadings(document).forEach(hide);
-  hideAiModeTab(document);
+  hideAll(scanForHeadings(document));
+  applyAiModeTabState();
 }
 
 // After the initial pass, only inspect nodes that are actually added by
@@ -306,16 +337,16 @@ function handleMutations(records) {
       for (const sel of SELECTORS) {
         try {
           if (node.matches(sel)) {
-            hide(node);
+            hideAll([node]);
           } else {
-            node.querySelectorAll(sel).forEach(hide);
+            hideAll(node.querySelectorAll(sel));
           }
         } catch (e) {
           continue;
         }
       }
-      scanForHeadings(node).forEach(hide);
-      hideAiModeTab(node);
+      hideAll(scanForHeadings(node));
+      if (!showAiModeTabSetting) hideAiModeTab(node);
     }
   }
 }
@@ -384,47 +415,81 @@ function removeShowAiBanner() {
   document.getElementById(BANNER_ID)?.remove();
 }
 
+// Single source of truth for what this page should look like right now.
+//
+// Previously each handler decided independently, which produced three related
+// defects: turning the extension off restored hidden panels but left the AI
+// Mode tab hidden with its href stripped; the "show AI Mode tab" preference
+// manipulated the page even while the master switch was off; and the two AI
+// Mode mechanisms could disagree. Deriving everything from the same three
+// values in one place makes the invariant checkable instead of implied:
+//
+//   filtering  ⟺  extension enabled AND this page is not an authorized bypass
+//   not filtering  ⟹  no observer, no banner, no hidden panels, AI Mode tab
+//                     restored, and the AI Mode preference does not touch
+//                     the page at all
+function applyPageState({ isPageLoad = false } = {}) {
+  const filtering = enabledSetting && !bypassAuthorized;
+
+  if (!filtering) {
+    stopObserving();
+    removeShowAiBanner();
+    restoreHiddenPanels();
+    revealAiModeTab(); // off means off: undo the tab hide too
+    return;
+  }
+
+  treatHidesAsDrift = isPageLoad;
+  initialScan();
+  startObserving();
+  injectShowAiBanner();
+}
+
+// The AI Mode tab is the one thing with its own preference on top of the
+// master switch. Only ever called while filtering is active.
+function applyAiModeTabState() {
+  if (showAiModeTabSetting) {
+    revealAiModeTab();
+  } else {
+    hideAiModeTab(document);
+  }
+}
+
 chrome.storage.local.get(["enabled", "showAiModeTab", "bypassToken"], (result) => {
+  enabledSetting = result.enabled !== false;
   showAiModeTabSetting = result.showAiModeTab === true;
-  // If this page was reached via an authorized "Show AI Overview" link,
-  // the user explicitly asked to see AI content here — so this script
-  // stays completely hands-off: no hiding, no observing, no banner, and
-  // (critically) no ai_content_detected report, which would otherwise
-  // fire a misleading "backup filter caught something" note in the popup
-  // for content the user deliberately requested. This is the fix for the
-  // bypass-link regression; see the header comment.
+  // If this page was reached via an authorized "Show AI Overview" link, the
+  // user explicitly asked to see AI content here, so this script stays
+  // completely hands-off — including no ai_content_detected report, which
+  // would otherwise fire a misleading "backup filter caught something" note
+  // for content the user deliberately requested.
   bypassAuthorized = isAuthorizedBypass(result.bypassToken);
   if (bypassAuthorized) return;
 
-  if (result.enabled !== false) {
-    initialScan();
-    startObserving();
-    injectShowAiBanner();
-  }
+  applyPageState({ isPageLoad: true });
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
+  if (bypassAuthorized) return; // authorized bypass page: never filter it
+
+  let changed = false;
+
+  if ("enabled" in changes) {
+    enabledSetting = changes.enabled.newValue !== false;
+    changed = true;
+  }
 
   if ("showAiModeTab" in changes) {
     showAiModeTabSetting = changes.showAiModeTab.newValue === true;
-    if (showAiModeTabSetting) {
-      revealAiModeTab();
-    } else {
-      hideAiModeTab(document); // no-ops on an authorized bypass page
-    }
+    // Deliberately does NOT act on the page directly. While the master switch
+    // is off, changing this preference must be inert; applyPageState decides.
+    changed = true;
   }
 
-  if ("enabled" in changes) {
-    if (bypassAuthorized) return; // authorized bypass page: never filter it
-    if (changes.enabled.newValue !== false) {
-      initialScan();
-      startObserving();
-      injectShowAiBanner();
-    } else {
-      stopObserving();
-      removeShowAiBanner();
-      restoreHiddenPanels(); // bring AI panels back immediately, not just on reload
-    }
-  }
+  if (!changed) return;
+
+  // isPageLoad: false — a hide caused by the user turning the extension on
+  // over an already loaded SERP is expected, not evidence of drift.
+  applyPageState({ isPageLoad: false });
 });
