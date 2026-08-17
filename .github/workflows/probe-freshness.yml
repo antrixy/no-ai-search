@@ -1,33 +1,44 @@
 # .github/workflows/probe-freshness.yml
 #
-# docs/monitoring/heading-detection-dryrun.js copies HEADING_TEXT_PATTERNS
-# and climbToPanel() verbatim from content.js, because a probe cannot test
-# whether a pattern still matches without evaluating that pattern. The copy
-# is correct only for one specific version of content.js.
+# Two probes in docs/monitoring/ copy logic from the extension: the heading
+# dry run copies HEADING_TEXT_PATTERNS and climbToPanel() from content.js, and
+# redirect-health.js copies SAFE_VERTICAL_UDM_VALUES and BYPASS_PARAM from
+# background.js. Neither can be written any other way — a probe cannot test
+# whether a pattern still matches without evaluating that pattern — and each
+# copy is correct only for one specific version of its source.
 #
-# Without a guard, editing content.js leaves a plausible-looking probe in
-# docs/ testing rules the extension no longer uses — silent drift, and the
-# exact failure docs/inspect-hidden-panels.js was written to avoid. This
-# turns that into a red check.
+# Without a guard, editing a source leaves a plausible-looking probe in docs/
+# testing rules the extension no longer uses: silent drift, and the exact
+# failure docs/inspect-hidden-panels.js was written to avoid. This turns that
+# into a red check.
 #
-# When this fails: re-sync the verbatim block in the probe, then update
-# CONTENT_JS_SHA256 to the new hash. Do not update the hash alone.
+# When a pin check fails: re-sync the verbatim block in the probe, THEN update
+# the hash. Updating the hash alone makes the check pass while leaving the
+# probe wrong, which is the one thing this guard cannot detect.
+#
+# This workflow also parses the shipping extension and runs the content-script
+# control-state tests in test/.
 
 name: probe freshness
 
 on:
   push:
     paths:
-      - 'no-ai-search/content.js'
-      - 'docs/monitoring/heading-detection-dryrun.js'
+      - 'no-ai-search/**'
+      - 'docs/monitoring/*.js'
+      - 'test/**'
+      - '.github/workflows/probe-freshness.yml'
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Both probes copy logic, so both need a pin. redirect-health.js copies
       # SAFE_VERTICAL_UDM_VALUES and BYPASS_PARAM from background.js — it was
