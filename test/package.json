@@ -2,6 +2,10 @@
   "name": "no-ai-search-tests",
   "private": true,
   "description": "Deterministic tests for the content script's control state. Not shipped in the extension.",
-  "scripts": { "test": "node --test" },
-  "devDependencies": { "jsdom": "^24.0.0" }
+  "scripts": {
+    "test": "node --test '*.test.js'"
+  },
+  "devDependencies": {
+    "jsdom": "30.0.1"
+  }
 }
