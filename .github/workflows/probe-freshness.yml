@@ -90,3 +90,30 @@ jobs:
             node --check "$f"
             echo "ok: $f"
           done
+
+      # Node is pinned to 22 because that is where the suite was validated.
+      # Not a claim that 24 breaks it — just that nobody has checked, and a
+      # red run caused by the runner rather than by the extension is the false
+      # alarm this repo has been careful to avoid elsewhere.
+      - name: set up node
+        if: always()
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      # jsdom is pinned EXACTLY (not ^ranged) in test/package.json. There is no
+      # committed lockfile, so a range would let an upstream jsdom release
+      # change the DOM these tests run against and turn the suite red for
+      # reasons that have nothing to do with content.js.
+      #
+      # npm install, not npm ci: ci requires a lockfile. If you later commit
+      # test/package-lock.json (drop it from test/.gitignore), switch to
+      # `npm ci` here for a stricter guarantee.
+      - name: content script control-state tests
+        if: always()
+        working-directory: test
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          node -e "console.log('jsdom', require('jsdom/package.json').version)"
+          node --test '*.test.js'
