@@ -34,6 +34,12 @@ Run the two as a pair: the dry run **predicts** what would be hidden, then toggl
 extension on and run `../inspect-hidden-panels.js` to **observe** what actually was.
 If they disagree, the dry run has drifted and the observer is correct.
 
+The guard was tested in both directions on 2026-08-17. Run #2 (a one-word
+comment edit to `content.js`) failed on the pin step with the two hashes
+printed, and the parse step was skipped rather than run. Run #3 (the revert)
+went green. Both fired automatically from the push path filter, without a
+manual dispatch.
+
 ## Calibration
 
 `heading-detection-dryrun.js` ships with `K_MIN = null` and will not issue verdicts
