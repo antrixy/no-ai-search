@@ -27,34 +27,62 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - name: probe is pinned to the current content.js
+      # Both probes copy logic, so both need a pin. redirect-health.js copies
+      # SAFE_VERTICAL_UDM_VALUES and BYPASS_PARAM from background.js — it was
+      # unguarded until now, which is the same drift this workflow exists for.
+      #
+      # NOTE ON WHAT THIS PROVES: change detection, not equivalence. A green
+      # check means "the pin matches the source today," not "the copied block
+      # is correct." Someone can edit the source and update only the pin. It is
+      # a tripwire; do not read it as proof the probes are in sync.
+      - name: probes are pinned to their sources
         run: |
           set -euo pipefail
-          PROBE=docs/monitoring/heading-detection-dryrun.js
-          SOURCE=no-ai-search/content.js
+          fail=0
 
-          ACTUAL=$(sha256sum "$SOURCE" | cut -d' ' -f1)
-          PINNED=$(grep -oE 'CONTENT_JS_SHA256 = "[0-9a-f]{64}"' "$PROBE" \
-                   | grep -oE '[0-9a-f]{64}' || true)
+          check_pin () {
+            probe="$1"; source="$2"; var="$3"
+            actual=$(sha256sum "$source" | cut -d' ' -f1)
+            pinned=$(grep -oE "${var} = \"[0-9a-f]{64}\"" "$probe" \
+                     | grep -oE '[0-9a-f]{64}' || true)
+            if [ -z "$pinned" ]; then
+              echo "::error file=$probe::No ${var} pin found."
+              fail=1; return
+            fi
+            if [ "$actual" != "$pinned" ]; then
+              echo "::error file=$probe::Stale — it copies logic from $source, which has changed."
+              echo "  pinned: $pinned"
+              echo "  actual: $actual"
+              echo "Re-sync the verbatim block, then update the pin."
+              fail=1; return
+            fi
+            echo "ok: $probe pinned to $source ($actual)"
+          }
 
-          if [ -z "$PINNED" ]; then
-            echo "::error file=$PROBE::No CONTENT_JS_SHA256 pin found."
-            exit 1
-          fi
+          check_pin docs/monitoring/heading-detection-dryrun.js \
+                    no-ai-search/content.js CONTENT_JS_SHA256
+          check_pin docs/monitoring/redirect-health.js \
+                    no-ai-search/background.js BACKGROUND_JS_SHA256
 
-          if [ "$ACTUAL" != "$PINNED" ]; then
-            echo "::error file=$PROBE::Probe is stale — it copies detection logic from $SOURCE, which has changed."
-            echo "  pinned: $PINNED"
-            echo "  actual: $ACTUAL"
-            echo "Re-sync the verbatim block, then update the pin."
-            exit 1
-          fi
+          exit $fail
 
-          echo "Probe pinned to current $SOURCE ($ACTUAL)."
+      # The shipping extension is the product; the probes are scaffolding.
+      # Checking only the scaffolding had it backwards.
+      - name: shipping code parses
+        if: always()
+        run: |
+          set -euo pipefail
+          for f in no-ai-search/*.js; do
+            node --check "$f"
+            echo "ok: $f"
+          done
+          python3 -c "import json,sys; json.load(open('no-ai-search/manifest.json'))"
+          echo "ok: no-ai-search/manifest.json"
 
       - name: probes parse
+        if: always()
         run: |
           set -euo pipefail
           for f in docs/monitoring/*.js docs/inspect-hidden-panels.js; do
