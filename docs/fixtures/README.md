@@ -1,6 +1,6 @@
 # Fixtures
 
-Captured 2026-08-10. Evidence for `docs/monitoring-feasibility.md`.
+Captured 2026-08-10. Evidence for `docs/monitoring/monitoring-feasibility.md`.
 
 | file | what it is |
 |---|---|
