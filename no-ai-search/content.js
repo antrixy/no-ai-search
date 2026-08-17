@@ -62,7 +62,6 @@
 // phrasing for "AI Overview" across different versions/dates, so there
 // wasn't one confirmed literal string to match exactly. Any language not
 // listed falls back to the attribute-based SELECTORS only.
-// Adding text 
 
 const SELECTORS = [
   'div[data-attrid="AIOverview"]',
