@@ -82,8 +82,35 @@ the only remaining route to these assertions, and that is a materially larger pi
 of work than a monitoring script — it is a separate decision, not a continuation of
 this one.
 
-The extension remains unmonitored. That was also true before this measurement; what
-is new is the reason.
+The extension remains **unmonitored** in the sense meant here: nothing runs on a
+schedule, and nothing catches drift without a human deciding to look. That
+constraint is unchanged by anything below.
+
+What has since been added is the manual route this finding left open — two console
+probes, run in a real browser, which clears the JS-execution gate by construction:
+
+- `heading-detection-dryrun.js` — the `role="heading"` detection path. Predicts what
+  `content.js` would hide, without hiding it. Carries the liveness gate defined
+  above, because "no AI heading matched" is also what a page with no AI Overview
+  looks like.
+- `redirect-health.js` — the `udm=14` redirect and the `SAFE_VERTICAL_UDM_VALUES`
+  allowlist. No liveness gate needed: it reads the URL of a page you navigated to
+  yourself, so a gated response is not a state it can silently be in.
+
+Both are manual and on demand. They do not make the extension monitored; they make
+it checkable in a few minutes when there is reason to look. See the README in this
+folder.
+
+### K is still unset — but now measurable
+
+The liveness definition above depends on `K`, the minimum count of distinct
+non-Google external result hostnames. It could not be measured here, because no
+document with external destinations was ever obtained by fetch.
+
+`heading-detection-dryrun.js` runs on exactly such a document. It ships with
+`K_MIN = null`, which puts it in calibration mode: liveness is reported, verdicts
+are withheld, and the observed hostname count is logged. Run the three query shapes,
+take the floor, subtract margin, set `K_MIN`, and record the measurements here.
 
 ## Fixtures
 
