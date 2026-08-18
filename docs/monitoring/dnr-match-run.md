@@ -144,20 +144,63 @@ it a "short path-only urlFilter" is wrong.
 Fix: give the www redirect and bypass rules the same anchored form the
 safe-vertical rules already use — `^https://www\\.google\\.com/search\\?`.
 
-**2. A typed `udm=50` URL is matched by the redirect rule.**
+**2. `udm=50` — the matcher and the browser disagree, and both are right.**
 
-`www.google.com/search?q=test&udm=50` → rule 1.
-`google.com/search?q=test&udm=50` → rule 3.
+Matcher rows:
 
-This contradicts the `content.js` header comment, which says someone manually
-navigating to a `udm=50` URL "would also reach AI Mode unhindered." That claim
-was generalised from the in-page AI Mode tab, where nothing observable reaches
-the extension. The two cases are different: Chrome's docs note DNR applies to
-requests that reach the network stack and may not cover service-worker-handled
-navigation, which explains the in-page tab but not a typed URL.
+| URL | Matched |
+|---|---|
+| `www.google.com/search?q=test&udm=50` | 1 |
+| `google.com/search?q=test&udm=50` | 3 |
 
-Fix: correct the comment. The bounded gap it describes is real for the in-page
-transition and not for direct navigation.
+Live check, run from a page console to bypass omnibox autocomplete:
+
+```js
+location.href = 'https://www.google.com/search?q=test&udm=50';
+```
+
+DevTools reported:
+
+```
+Navigated to chrome://contextual-tasks/?chrome_task_id=2181c9a5-4607-4afe-978f-18d82738d335
+```
+
+**The request never reached `www.google.com`.** Chrome intercepted the
+navigation and served AI Mode from an internal `chrome://contextual-tasks/`
+surface. The result was AI Mode, with the AI Mode tab visible and nothing
+hidden.
+
+There is no contradiction between the two results. `testMatchOutcome()` answers
+a hypothetical — *if* this URL were issued as a main-frame GET, rule 1 would
+match it. Chrome's interception means that request is never issued.
+`declarativeNetRequest` only applies to requests that reach the network stack,
+and a `chrome://` page is not one.
+
+This also explains an observation recorded in the `content.js` header comment
+but never accounted for: four unrelated extension APIs — declarativeNetRequest,
+MutationObserver, `chrome.tabs.onUpdated`, `chrome.storage.onChanged` — all
+report *nothing at all* on the AI Mode page. The comment inferred from that
+silence that AI Mode "isn't part of the same page/origin a content script
+attaches to." That inference was correct, and the mechanism is now identified:
+it is a `chrome://` page. No content script can be injected into one, and no
+DNR rule applies to it.
+
+Fix: sharpen the comment rather than correct it. The claim that a manually
+navigated `udm=50` URL reaches AI Mode unhindered is **true**, and the reason
+is Chrome-side interception — not, as the comment implies, a property of the
+request the extension failed to match.
+
+**Open, and more consequential than the original question.** This is
+Chrome-version-dependent *browser* behaviour, not Google-server behaviour. If a
+future Chrome stops intercepting `udm=50` and lets the navigation reach the
+network, rule 1 would begin firing and the extension's coverage would change
+without any change to this repo. Nothing here monitors that.
+
+Scope limit on this measurement: tested once, from an AI Mode page, via
+`location.href`, on the bare apex. Whether a `www.google.com` navigation
+initiated from an ordinary page behaves identically was not tested — the
+interception appears URL-pattern-based rather than origin-based, but that is
+inference, not measurement.
 
 **3. The safe-vertical allow rule is over-permissive on duplicate `udm` (P2).**
 
@@ -195,15 +238,31 @@ comment in `background.js`.
 | `xmlhttprequest` | none | none |
 | `post` | none | none |
 
-### Still outstanding
+### Live checks — both complete
 
-Two live checks that `testMatchOutcome()` cannot answer, because it reports
-what the matcher considers applicable rather than what the user ends up with:
+**Travel.** Loading `www.google.com/travel/search?q=hotel` with the extension
+on produced an address bar reading:
 
-- Load `www.google.com/travel/search?q=hotel` with the extension on and record
-  whether the address bar gains `udm=14`.
-- Type a `udm=50` search and record whether the result is AI Mode or Web.
+```
+google.com/travel/search?q=hotel&udm=14&ved=0CAAQ5JsGahcKEwjgjd7t-qiWAxUAAAAAHQAAAAACCg
+```
 
-Finding 1 does not depend on these — a rule matching Google Travel is already
-outside the extension's single purpose. Finding 2's user-facing consequence
-does depend on the second check.
+The extension appended `udm=14` to a Google Hotels search. The page rendered
+hotel results normally — Travel ignores the parameter — so the practical cost
+is an extra navigation rather than broken functionality. Finding 1 is therefore
+confirmed at the address bar, not only in the matcher.
+
+**udm=50.** See finding 2 above. Resolved differently than expected.
+
+### A note on how this run nearly went wrong
+
+The first three `udm=50` attempts all produced the identical URL, carrying
+`sourceid=chrome&ccb=1&biw=…&bih=…` — markers Chrome adds when it constructs a
+search itself. Omnibox autocomplete was completing the previously visited URL,
+so each "new" attempt re-ran the same navigation. Three data points, one
+measurement.
+
+The tell was that the URL was byte-identical across attempts, including the
+viewport-dependent `biw`/`bih` values. Worth remembering: when a repeated
+manual test keeps producing exactly the same result, check that the input is
+actually varying before concluding the behaviour is stable.
