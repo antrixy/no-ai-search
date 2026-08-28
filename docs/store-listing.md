@@ -16,7 +16,7 @@ Searches are filtered at the source, before anything AI-generated ever loads —
 
 CHANGED YOUR MIND?
 Blocking AI shouldn't be all-or-nothing:
-• Want the AI Overview for one search? A small "Show AI Overview for this search" link is right there on the results page.
+• Want the AI Overview for one search? Click the toolbar icon and hit "Show AI Overview for this search." Nothing is ever added to the results page itself.
 • Want the AI Mode tab back for good? A second toggle in the popup brings it back, no need to disable the extension.
 
 SIMPLE CONTROLS
@@ -39,7 +39,7 @@ box for each.
 
 **storage**
 ```
-Used to save the user's on/off preference locally, and a per-session random token used by the optional "Show AI Overview" link. Nothing is synced to an account or transmitted anywhere — chrome.storage.local only.
+Used to save the user's on/off preference locally, and a per-session random token used by the optional "Show AI Overview" button in the popup. Nothing is synced to an account or transmitted anywhere — chrome.storage.local only.
 ```
 
 **declarativeNetRequest**
@@ -78,7 +78,7 @@ No account or login is needed to test this extension.
 
 3. On that same results page, note there is no "AI Mode" tab in the row of tabs (All, Images, Videos, etc.) — it's hidden by default.
 
-4. In the top-right corner of the results page, there's a small "Show AI Overview for this search" link. Clicking it reloads the same search without the udm=14 filter, so Google's AI Overview (if available for that query) is shown for that one search only. Searching again afterward returns to the filtered default.
+4. Clicking the toolbar icon opens a popup with a "Show AI Overview for this search" button. Clicking it reloads the same search without the udm=14 filter, so Google's AI Overview (if available for that query) is shown for that one search only. Searching again afterward returns to the filtered default.
 
 5. In the popup, turn "Block AI results" off. Search again — AI Overview is no longer filtered, demonstrating the toggle controls the entire feature.
 

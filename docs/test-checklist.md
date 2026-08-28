@@ -26,8 +26,8 @@ Check each box as you go. All items must pass.
 - [ ] Confirm the URL contains `udm=14` after the redirect
 - [ ] Confirm no AI Overview or AI Mode panel appears above the results
 - [ ] Confirm regular blue-link web results are showing
-- [ ] Confirm the **"Show AI Overview for this search"** banner appears
-      top-right of the results page
+- [ ] Confirm **nothing is added to the page** — no banner, badge, or
+      overlay anywhere, particularly the top-right corner
 
 ---
 
@@ -36,7 +36,7 @@ Check each box as you go. All items must pass.
 - [ ] Go to `https://google.com` (no www) and search for the same query
 - [ ] Confirm the URL contains `udm=14`
 - [ ] Confirm no AI Overview appears
-- [ ] Confirm the "Show AI Overview" banner appears
+- [ ] Confirm nothing is added to the page here either
 
 ---
 
@@ -63,24 +63,33 @@ Check each box as you go. All items must pass.
 
 ---
 
-## 5. "Show AI Overview" banner is Web-results-only
+## 5. Bypass button state on non-Web verticals
 
 - [ ] From a filtered results page, click the **Images** tab
       (URL becomes `udm=2`)
-- [ ] Confirm the **"Show AI Overview for this search"** banner does
-      **not** appear on the Images results
-- [ ] Click the **Videos** tab and confirm the banner does not appear
-      there either
-- [ ] Return to **All / Web** results (`udm=14`) and confirm the banner
-      is present again
+- [ ] Open the popup and confirm the **Show AI Overview for this search**
+      button is present and usable (Images is still a Google search page;
+      the bypass simply drops `udm`)
+- [ ] Open a non-Google page (e.g. `example.com`), open the popup, and
+      confirm the button is **disabled** with "Open a Google search to
+      use this."
+- [ ] Confirm the popup does not error or show a blank section in either
+      case
 
 ---
 
-## 6. Dismiss banner
+## 6. Page stays clean across a browsing session
 
-- [ ] On a filtered results page, click the **×** button on the banner
-- [ ] Confirm the banner disappears immediately
-- [ ] Confirm the rest of the results page is unaffected
+*Regression guard for the v1.2.0 defect: an injected banner appeared on
+every single search with no way to suppress it. The point of this section
+is repetition — a single search proves nothing.*
+
+- [ ] Run **five different searches** in a row
+- [ ] After each, confirm nothing has been added to the page: no banner,
+      no overlay, no element covering Google's account avatar or apps
+      grid in the top-right
+- [ ] Confirm Google's own header controls (avatar, apps grid, Settings)
+      are all clickable and unobscured
 
 ---
 
@@ -90,7 +99,8 @@ Check each box as you go. All items must pass.
 - [ ] Confirm popup shows "Off — Google's normal AI results will show."
 - [ ] Run a search on `www.google.com`
 - [ ] Confirm the URL does **not** contain `udm=14`
-- [ ] Confirm the "Show AI Overview" banner does **not** appear
+- [ ] Open the popup and confirm the bypass button section is **hidden**
+      entirely (with the filter off there is nothing to bypass)
 - [ ] Confirm AI Overviews can now appear normally (try "what is
       machine learning" again)
 - [ ] _(Conditional — only reproducible if the backstop fired earlier.)_
@@ -108,7 +118,8 @@ Check each box as you go. All items must pass.
 - [ ] Click the toolbar icon → flip toggle back to **ON**
 - [ ] Run a search
 - [ ] Confirm `udm=14` is back in the URL
-- [ ] Confirm the "Show AI Overview" banner reappears
+- [ ] Open the popup and confirm the bypass button section is visible
+      and enabled again
 
 ---
 
@@ -212,7 +223,8 @@ Check each box as you go. All items must pass.
 
 1. Take screenshots for the store listing:
    - The popup (toggle ON state, including the "Show 'AI Mode' tab" toggle)
-   - A filtered results page showing the "Show AI Overview" banner
+   - The popup showing the "Show AI Overview for this search" button
+   - A filtered results page (clean — no extension UI on it at all)
    - A before/after side-by-side if possible (extension OFF vs ON)
    - Required size: **1280×800** or **640×400** (Chrome enforces this)
 
