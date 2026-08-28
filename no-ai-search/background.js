@@ -29,10 +29,14 @@
 // nothing reachable from this extension can observe that transition
 // happening at all. See content.js's header comment for the full story.
 //
-// content.js also adds a "Show AI Overview for this search" link on
-// every results page, for people who want to see it for one specific
-// query without turning the extension off. That link points at the
-// same query with udm removed and a marker param attached. The bypass
+// The popup offers a "Show AI Overview for this search" button, for
+// people who want to see it for one specific query without turning the
+// extension off. It navigates the current tab to the same query with udm
+// removed and a marker param attached. (Through v1.1.2 this was a banner
+// injected into every results page; it moved to the popup in v1.2.0
+// after a user reported the always-present overlay as the extension's
+// most annoying trait. The mechanism is unchanged — only the control's
+// location.) The bypass
 // rules below exist only to let that one request through unmodified —
 // each has higher priority than its matching redirect rule, so Chrome
 // picks it over the redirect for any request carrying the marker, and
