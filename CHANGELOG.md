@@ -30,11 +30,16 @@ on [Keep a Changelog](https://keepachangelog.com/).
   applications could both pass the guard and stack two banners.
 
 ### Notes
+- No new permissions. Verified in a browser that the popup reads the active
+  tab's URL through the existing host permissions, so `activeTab` was not
+  required — the permission set is unchanged from 1.1.2.
 - The existing test suite could not have caught this. `test/rig.js`'s
   fixture URL carried no `udm` parameter, so the one page state every real
   user is in — `udm=14`, post-redirect — was never exercised. The new
   tests pin that state explicitly, and the first of them documents the gap
   by passing on the old build too.
+- Full reasoning, reproduction, and the checklist-design question in
+  `docs/issue-banner-every-search.md`.
 
 ## 1.1.2 — 2026-07-23
 
