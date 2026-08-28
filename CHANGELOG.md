@@ -4,6 +4,38 @@ All notable changes to No AI Search are documented here. This project
 follows [Semantic Versioning](https://semver.org/) and the format is based
 on [Keep a Changelog](https://keepachangelog.com/).
 
+## 1.2.0 — 2026-08-28
+
+### Changed
+- The **"Show AI Overview for this search"** control moved from a banner on
+  the results page into the toolbar popup. Reported externally as a 1-star
+  review: because the redirect rule puts every search on `udm=14`, the
+  banner's "Web results only" scoping excluded nothing in practice, so it
+  appeared on every search. Dismissing it was per-page and not persisted,
+  and there was no setting to suppress it. As a fixed-position overlay in
+  the top-right corner it could also sit over Google's own account and
+  apps controls.
+- The bypass mechanism is otherwise unchanged — same per-session token,
+  same query parameter, same network allow rule. Only the control's
+  location moved.
+
+### Removed
+- The content script no longer injects any UI into the page. It now only
+  ever removes AI panels; it never adds an element of its own in any
+  state. Guarded by `test/no-injected-ui.test.js`.
+
+### Fixed
+- A latent duplicate-banner race is gone with the banner: the dedupe check
+  ran before an `await` and the append after it, so two overlapping state
+  applications could both pass the guard and stack two banners.
+
+### Notes
+- The existing test suite could not have caught this. `test/rig.js`'s
+  fixture URL carried no `udm` parameter, so the one page state every real
+  user is in — `udm=14`, post-redirect — was never exercised. The new
+  tests pin that state explicitly, and the first of them documents the gap
+  by passing on the old build too.
+
 ## 1.1.2 — 2026-07-23
 
 ### Fixed

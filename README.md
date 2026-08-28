@@ -25,12 +25,14 @@ The rule only fires when `udm=14` isn't already present, which avoids redirect l
 ## Features
 
 - **Automatic classic results** — forces Google's "Web" filter (`udm=14`) on every search, no manual clicking.
-- **One-click bypass** — a small banner on the results page lets you reload the current search with AI content back on, for that one search only. Your default stays AI-free.
-- **Scoped, unobtrusive UI** — the bypass banner appears only on Web-results pages, so it never shows up where it doesn't belong.
+- **One-click bypass** — a button in the toolbar popup reloads the current search with AI content back on, for that one search only. Your default stays AI-free.
+- **Nothing added to the page** — the extension only ever removes AI panels; it never injects banners, badges, or overlays of its own into your search results.
 - **Clean disable** — restores anything it adjusts when you turn the extension off, so nothing is left in a half-modified state.
 - **Auditable** — plain Manifest V3 with straightforward HTML/CSS/JS and no build step, so you can read exactly what it does.
 
 ## What's new
+
+**1.2.0** — The "Show AI Overview for this search" control moved from a banner on every results page into the toolbar popup. The extension no longer adds anything to the page. The bypass itself works exactly as before — open the popup on any search to use it.
 
 **1.1.2** — Fixes "People also ask" being hidden along with the AI Overview. This showed up when you switched the extension on while a results page was already open: the AI Overview disappeared correctly, but the question list went with it. Ordinary searches were unaffected.
 
@@ -58,14 +60,14 @@ Full history: **[Releases](https://github.com/antrixy/no-ai-search/releases)** �
 
 Once installed, just search Google as you normally would. Every search resolves to the classic Web-results page automatically.
 
-When you want the AI version back for a single search, use the bypass control in the banner on the results page. It reloads that one query with Google's default (AI-inclusive) results. Your next search returns to AI-free on its own — the bypass is per-search, not a mode switch.
+When you want the AI version back for a single search, click the toolbar icon and use **Show AI Overview for this search**. It reloads that one query with Google's default (AI-inclusive) results. Your next search returns to AI-free on its own — the bypass is per-search, not a mode switch.
 
 ## Permissions
 
 No AI Search requests the minimum needed to do its job. The authoritative list lives in `no-ai-search/manifest.json`; in plain terms:
 
 - **`declarativeNetRequest`** — to apply the redirect rule that appends `udm=14`.
-- **Host access to Google Search** — so the redirect rule and the bypass banner run only on Google search result pages and nowhere else.
+- **Host access to Google Search** — so the redirect rule, the backstop, and the popup's bypass button apply only to Google search result pages and nowhere else.
 
 The extension does not read the content of pages other than Google search results. See the privacy policy for what is and isn't collected.
 
