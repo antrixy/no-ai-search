@@ -135,7 +135,7 @@ const BACKGROUND_JS_SHA256 = "9ac41afe8e322cc32edfe34b9d199b3831ce6e6577778d0553
     { step: '3', do: 'Click the Images tab', expect: 'stays on udm=2, NOT bounced to Web' },
     { step: '4', do: 'Click the Videos tab', expect: 'stays on udm=7' },
     { step: '5', do: 'Click any tab flagged NOT ALLOWLISTED above', expect: 'bounced to Web — confirms the gap' },
-    { step: '6', do: 'Click "Show AI Overview for this search" in the banner', expect: 'no udm, token present, AI Overview visible' },
+    { step: '6', do: 'Open the popup, click "Show AI Overview for this search"', expect: 'no udm, token present, AI Overview visible' },
     { step: '7', do: 'Reuse that same bypass URL after a browser restart', expect: 'token stale — redirect applies again' },
     { step: '8a', do: 'Type https://www.google.com/search?q=test&udm=50 directly', expect: 'UNRESOLVED — record what happens' },
     { step: '8b', do: 'Click Google\'s in-page AI Mode tab (set "show AI Mode tab" ON first)', expect: 'UNRESOLVED — record separately from 8a' },
