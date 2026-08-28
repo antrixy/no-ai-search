@@ -140,13 +140,19 @@ is repetition — a single search proves nothing.*
 
 ## 10. Session token rotation
 
-- [ ] With the extension ON, open a filtered results page and note the
-      full URL of the "Show AI Overview" link (hover or inspect `href`)
+*Method changed in 1.2.0: there is no longer a link on the page to hover.
+The bypass URL is built in `popup.js` and held in the button's
+`dataset.href`, so read the token out of the address bar after clicking,
+or inspect the popup (right-click the popup → Inspect).*
+
+- [ ] With the extension ON, open a filtered results page, click **Show
+      AI Overview for this search**, and note the `show_ai_overview=`
+      value in the resulting URL
 - [ ] Close Chrome completely and reopen it
-- [ ] Load the extension, open a results page, and inspect the new
-      "Show AI Overview" link's URL
-- [ ] Confirm the token value (`show_ai_overview=...`) is **different**
-      from the one noted before closing Chrome
+- [ ] Load the extension, open a results page, click the button again and
+      note the new `show_ai_overview=` value
+- [ ] Confirm the token value is **different** from the one noted before
+      closing Chrome
 - [ ] Paste the **old** bypass URL into a new tab
 - [ ] Confirm it gets redirected back to filtered results (old token
       no longer works)
@@ -187,17 +193,45 @@ is repetition — a single search proves nothing.*
 - [ ] Open any non-Google website
 - [ ] Confirm the extension has no visible effect
 
-### Over-hiding check (added in 1.1.2)
+### Over-hiding check (added in 1.1.2, method corrected in 1.2.0)
 
-- [ ] Search a query that shows **"People also ask"** with the extension
-      **ON** — e.g. `how does photosynthesis work`
-- [ ] Confirm the People-also-ask questions are **visible**, and that the
-      AI Overview above them is gone
-- [ ] Repeat the same query **3×** — page composition varies materially
-      between renders, so one pass does not clear this box
-- [ ] Confirm the other classic features on the page survived: organic
-      results, related searches, and any widget (translate, calculator,
-      unit conversion) the query would normally produce
+*The original steps said "with the extension ON" without saying how to
+reach a page carrying a PAA block. There is only one routine way, and it
+is not a filtered page. Per `issue-paa-overhide.md`: under `udm=14` the
+PAA block never renders, so the content script only meets one on a SERP
+that was not redirected — which in shipped use means toggling the
+extension **on** over an already-open plain results page. That is the
+path the v1.1.1 bug reached users through, and it is the path this check
+must use.*
+
+*Do not try to reach the default vertical by clicking the **All** tab
+with the extension on: a missing `udm` is not in
+`SAFE_VERTICAL_UDM_VALUES`, so the redirect rule sends it straight back
+to `udm=14`. Re-confirmed 2026-08-28.*
+
+- [ ] Extension **OFF**. Search a query that shows **"People also ask"**
+      on the default vertical — `why is the sky blue` and `what causes
+      hiccups` both did on 2026-08-28. `how does photosynthesis work`
+      did **not**; PAA is query- and render-dependent, so treat one
+      absence as noise, not a finding
+- [ ] Confirm the AI Overview **and** the PAA questions are both visible,
+      and that the URL has no `udm=14`
+- [ ] **Without reloading**, open the popup and toggle **Block AI
+      results ON**
+- [ ] Confirm the AI Overview is hidden and the PAA questions are still
+      **visible** — no orphaned "People also ask" heading sitting over
+      empty space
+- [ ] Confirm the other classic features survived: organic results,
+      related searches, and any widget (translate, calculator, unit
+      conversion) the query would normally produce
+- [ ] Toggle **OFF** again and confirm the AI Overview returns — this
+      reversal is what proves the extension, not Google, was doing the
+      hiding
+- [ ] Repeat the whole sequence **3×** — page composition varies
+      materially between renders, so one pass does not clear this box
+- [ ] Separately, confirm PAA is absent on any `udm=14` page. This is
+      **expected** (the Web vertical does not serve it) and is not an
+      over-hiding failure
 
 ---
 
