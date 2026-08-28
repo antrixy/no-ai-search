@@ -1,13 +1,21 @@
 // Backstop for the redirect rule in background.js. The redirect does the
-// real work; this exists for two things: (1) Google quietly weakening or
-// changing how udm=14 behaves, and (2) a "Show AI Overview for this
-// search" link, so AI Overview isn't an all-or-nothing setting — you can
-// ask for it on a single query without turning the extension off.
+// real work; this exists for one thing: Google quietly weakening or
+// changing how udm=14 behaves.
+//
+// This script deliberately injects NO UI of its own into the page. Up to
+// v1.1.2 it added a fixed-position "Show AI Overview for this search"
+// banner to every results page — un-dismissible beyond the current page,
+// with no setting to suppress it, and (because the redirect rule puts
+// every search on udm=14) present on every single search. That is now a
+// button in the popup instead; see popup.js. The per-search bypass itself
+// is unchanged — same token, same param, same network rule — only the
+// control's location moved. test/no-injected-ui.test.js pins the
+// no-injected-UI invariant.
 //
 // IMPORTANT (v1.1): when a page is reached via an authorized "Show AI
 // Overview" link — i.e. its URL carries this session's bypass token —
 // this script stays completely hands-off on that page: no hiding, no
-// MutationObserver, no banner, and no ai_content_detected report. The
+// MutationObserver, and no ai_content_detected report. The
 // network-layer bypass rule in background.js already lets Google serve
 // the AI Overview; without this exemption, the backstop below would then
 // re-hide the very panel the user just asked to see AND fire a
@@ -104,9 +112,10 @@ function isAiModeTabText(text) {
   return AI_MODE_TAB_PATTERNS.some((re) => re.test(text));
 }
 
-// Must match BYPASS_PARAM in background.js.
+// Must match BYPASS_PARAM in background.js. Still needed here to
+// recognize an authorized bypass page, even though the link that carries
+// it is now built in popup.js.
 const BYPASS_PARAM = "show_ai_overview";
-const BANNER_ID = "no-ai-search-banner";
 
 // Marks panels this script hid, and stashes their prior inline display
 // value, so restoreHiddenPanels() can put them back when the extension
@@ -138,14 +147,6 @@ let bypassAuthorized = false;
 function isAuthorizedBypass(bypassToken) {
   if (!bypassToken) return false;
   return new URLSearchParams(window.location.search).get(BYPASS_PARAM) === bypassToken;
-}
-
-// The banner only makes sense on the Web results view (udm=14) — the one
-// place AI Overview would otherwise appear and that this extension has
-// filtered. On Images/Videos/Shopping/etc. there's no AI Overview to
-// "show," so the banner would just be noise there.
-function isWebResultsView() {
-  return new URLSearchParams(window.location.search).get("udm") === "14";
 }
 
 // Returns true only if this call actually changed the page.
@@ -363,58 +364,6 @@ function stopObserving() {
   observer = null;
 }
 
-// Same query, minus udm (so Google serves the default tab, which can
-// include AI Overview), plus this session's bypass token, matching the
-// rule in background.js. Uses the current origin (www. or bare apex)
-// rather than assuming one, so the link stays on whichever domain the
-// page is actually on. Returns null if the token isn't ready yet (e.g.
-// content.js loaded in the brief window before background.js's startup
-// init() finishes) — caller skips showing the banner then.
-async function buildShowAiUrl() {
-  const { bypassToken } = await chrome.storage.local.get("bypassToken");
-  if (!bypassToken) return null;
-  const params = new URLSearchParams(window.location.search);
-  params.delete("udm");
-  params.set(BYPASS_PARAM, bypassToken);
-  return `${window.location.origin}/search?${params.toString()}`;
-}
-
-async function injectShowAiBanner() {
-  if (!isWebResultsView()) return; // only on the Web view; nothing to "show AI for" elsewhere
-  if (document.getElementById(BANNER_ID)) return;
-  const href = await buildShowAiUrl();
-  if (!href) return;
-
-  const banner = document.createElement("div");
-  banner.id = BANNER_ID;
-  banner.style.cssText =
-    "position:fixed;top:12px;right:12px;z-index:2147483647;" +
-    "background:#fff;color:#3c4043;border:1px solid #dadce0;" +
-    "border-radius:8px;padding:8px 12px;font:13px/1.4 arial,sans-serif;" +
-    "box-shadow:0 1px 3px rgba(0,0,0,.15);display:flex;" +
-    "align-items:center;gap:10px;";
-
-  const link = document.createElement("a");
-  link.textContent = "Show AI Overview for this search";
-  link.href = href;
-  link.style.cssText = "color:#1a73e8;text-decoration:none;";
-
-  const close = document.createElement("button");
-  close.textContent = "\u00d7";
-  close.setAttribute("aria-label", "Dismiss");
-  close.style.cssText =
-    "background:none;border:none;color:#5f6368;cursor:pointer;" +
-    "font-size:16px;line-height:1;padding:0;";
-  close.addEventListener("click", () => banner.remove());
-
-  banner.append(link, close);
-  document.body.appendChild(banner);
-}
-
-function removeShowAiBanner() {
-  document.getElementById(BANNER_ID)?.remove();
-}
-
 // Single source of truth for what this page should look like right now.
 //
 // Previously each handler decided independently, which produced three related
@@ -425,15 +374,15 @@ function removeShowAiBanner() {
 // values in one place makes the invariant checkable instead of implied:
 //
 //   filtering  ⟺  extension enabled AND this page is not an authorized bypass
-//   not filtering  ⟹  no observer, no banner, no hidden panels, AI Mode tab
-//                     restored, and the AI Mode preference does not touch
-//                     the page at all
+//   not filtering  ⟹  no observer, no hidden panels, AI Mode tab restored,
+//                     and the AI Mode preference does not touch the page
+//                     at all
+//   always          ⟹  no UI of our own is added to the page, in any state
 function applyPageState({ isPageLoad = false } = {}) {
   const filtering = enabledSetting && !bypassAuthorized;
 
   if (!filtering) {
     stopObserving();
-    removeShowAiBanner();
     restoreHiddenPanels();
     revealAiModeTab(); // off means off: undo the tab hide too
     return;
@@ -442,7 +391,6 @@ function applyPageState({ isPageLoad = false } = {}) {
   treatHidesAsDrift = isPageLoad;
   initialScan();
   startObserving();
-  injectShowAiBanner();
 }
 
 // The AI Mode tab is the one thing with its own preference on top of the

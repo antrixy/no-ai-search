@@ -101,6 +101,32 @@
     line-height: 1.4;
     color: var(--muted);
   }
+  #bypassSection[hidden] {
+    display: none;
+  }
+  .bypass-button {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--fg);
+    background: #2c2c2f;
+    border: 1px solid #3a3a3d;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .bypass-button:hover:not(:disabled) {
+    background: #35353a;
+    border-color: var(--accent);
+  }
+  .bypass-button:disabled {
+    color: var(--muted);
+    cursor: default;
+    opacity: 0.55;
+  }
 </style>
 </head>
 <body>
@@ -123,6 +149,13 @@
     </label>
   </div>
   <p class="substatus" id="substatus"></p>
+  <div id="bypassSection" hidden>
+    <div class="divider"></div>
+    <button type="button" class="bypass-button" id="bypass" disabled>
+      Show AI Overview for this search
+    </button>
+    <p class="substatus" id="bypassStatus"></p>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>
