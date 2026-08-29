@@ -1,7 +1,7 @@
 # SERP feature matrix — No AI Search
 
 Purpose: measure, in a real browser, exactly which Google Search features
-survive under each of the two possible extension modes, so the v1.2
+survive under each of the two possible extension modes, so the v1.3
 default is chosen from observation, not assumption.
 
 Background: the extension's current mechanism is forcing `udm=14` (the
@@ -22,7 +22,7 @@ changes Search behavior or when reconsidering the default mode.
 - **Mode A — "Clean Web" (current behavior).** Force `udm=14`. Maximum AI
   suppression; the classic stripped-down page. Cost: loses the non-AI
   widgets below.
-- **Mode B — "Keep widgets" (v1.2 proposal).** Do *not* force `udm=14`;
+- **Mode B — "Keep widgets" (v1.3 proposal).** Do *not* force `udm=14`;
   let the normal SERP load and use the content-script backstop to hide
   only the AI Overview panel and the AI Mode tab. Keeps the widgets. Cost:
   selector-dependent, and a possible brief flash of the AI panel before
@@ -303,7 +303,7 @@ the `text starts` output and the visual outline; not on that flag.
 occurs whenever the content script runs on a non-`udm=14` SERP — which in
 shipped use happens every time a user toggles the extension on with a
 search page already open. It is user-visible in the current release and
-warrants its own issue, separate from the v1.2 mode decision.
+warrants its own issue, separate from the v1.3 mode decision.
 
 **Second instance of the same failure mode.** `content.js`'s own header
 comment warns these attributes "get renamed often", and a previous `bard`
@@ -361,7 +361,14 @@ toggled a switch. The note then persists for 24 hours.
 
 Users will hit this constantly and read it as a malfunction. Suppress
 reports originating from a toggle-triggered scan as distinct from a
-page-load scan. v1.2 fix, cheap.
+page-load scan. Cheap fix.
+
+**Resolved.** `applyPageState()` now takes an `isPageLoad` flag and
+suppresses the drift report on toggle-triggered scans. Guarded by
+`DEFECT 3` and `DEFECT 3b` in `test/content-state.test.js`, both green as
+of 2026-08-28. Never recorded in `CHANGELOG.md`, which is why this line
+still read as an open action item — worth a look for other fixes that
+landed without an entry.
 
 Confirmed as a running annoyance during the §9 verification run: the
 warning fired on all nine toggle-ons and had to be explicitly disregarded
