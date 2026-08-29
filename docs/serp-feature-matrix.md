@@ -472,7 +472,13 @@ PAA row still has no Mode A measurement (§8).
 
 ## Decision
 
-- [ ] **Default mode for v1.2:** _(Clean Web / Keep widgets)_
+*Deferred to v1.3. The v1.2 slot went to the banner relocation instead —
+see `issue-banner-every-search.md`. Gate conditions, the 2026-08-28
+People-also-ask confirmation, and the reason these boxes are still
+unchecked are in `decision-mode-v13.md`. Nothing in the analysis below
+changed; only the version label.*
+
+- [ ] **Default mode for v1.3:** _(Clean Web / Keep widgets)_
 - [ ] **Ship both as a popup toggle?** _(Y/N)_
 - [ ] **Store-listing note** drafted for any features lost regardless of
       mode, so the known limitation is disclosed up front rather than
