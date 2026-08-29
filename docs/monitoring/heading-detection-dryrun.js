@@ -53,7 +53,7 @@
 // what actually was. If they disagree, this file has drifted and the
 // observer is right.
 
-const CONTENT_JS_SHA256 = "4f1167787cc0db60cc6c5314735cf5ccccffa59cbfaf05dc33868695bc7a77d3";
+const CONTENT_JS_SHA256 = "597100f4b18aa27ef184525a0ecc8d060f7de37f691b104abe6f382dfdc4573c";
 
 // RUN CONDITIONS — these matter:
 //   Extension OFF, on a plain SERP (no udm=14) with a live AI Overview.
