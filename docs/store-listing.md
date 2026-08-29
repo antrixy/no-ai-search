@@ -14,6 +14,13 @@ Tired of scrolling past an AI-generated summary just to get to real search resul
 HOW IT WORKS
 Searches are filtered at the source, before anything AI-generated ever loads — nothing flashes by, nothing has to be hidden after the fact. Under the hood it forces Google's classic Web results (the udm=14 filter), so no AI Overview is generated in the first place. The in-page "AI Mode" tab is hidden by default too, so there's no separate AI chat experience waiting to pull you in. Works across both google.com and www.google.com.
 
+GOOD TO KNOW
+Classic Web results are a deliberately plain view. Google's instant answers aren't part of it, so things like the calculator, unit and currency conversion, weather, dictionary definitions, time zones, stock quotes and knowledge panels won't appear while the extension is on. Toggle it off, or use the popup's one-search bypass, and they're back.
+
+Typos are still corrected — you just won't always see the "Did you mean" line announcing it.
+
+One thing that isn't us: on searches where an AI Overview would normally appear, Google often isn't showing the old answer box either way, with or without this extension.
+
 CHANGED YOUR MIND?
 Blocking AI shouldn't be all-or-nothing:
 • Want the AI Overview for one search? Click the toolbar icon and hit "Show AI Overview for this search." Nothing is ever added to the results page itself.
