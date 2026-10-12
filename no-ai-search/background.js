@@ -12,13 +12,21 @@
 // if that redirect hasn't rolled out yet in some region, or is reversed
 // in the future, this extension won't catch a ccTLD search directly.
 //
-// The bare apex needs its own condition shape rather than just adding
-// "google.com" to requestDomains: requestDomains cascades to every
-// subdomain of whatever's listed (mail.google.com, drive.google.com,
-// support.google.com, ...), some of which have their own "/search?"
-// paths for entirely unrelated, in-product search. The "|" in the bare
-// rule's urlFilter anchors to the exact start of the URL instead, so it
-// only ever matches "https://google.com/search?...", nothing wider.
+// Every rule here is anchored to the start of the URL. urlFilter is
+// substring matching unless it begins with "|", so an unanchored
+// "/search?" also matched Google Travel (/travel/search?), Maps,
+// Shopping, and "/search?" appearing inside a /url? redirect's query
+// value. Measured with Chrome's own matcher, and confirmed in the
+// address bar on Travel, in docs/monitoring/dnr-match-run.md; the
+// anchored form was re-checked in dnr-match-run-1.2.1.md.
+//
+// The bare apex can't simply be added to requestDomains: requestDomains
+// cascades to every subdomain of whatever's listed (mail.google.com,
+// drive.google.com, support.google.com, ...), some of which have their
+// own "/search?" paths for entirely unrelated, in-product search. So the
+// apex rules rely on the anchor alone, and only ever match
+// "https://google.com/search?...". The www rules keep requestDomains as
+// well, but it is the anchor that limits them to the Search path.
 //
 // This isn't assumed to be bulletproof: content.js is a lightweight
 // backstop for cases this redirect can't cover (Google changing
@@ -47,7 +55,7 @@
 // link only works for the session it was created in, not indefinitely.
 //
 // Safe-vertical allowlist: the redirect rules above match every
-// "/search?" request and force udm=14 onto it, which is correct for the
+// Search request and force udm=14 onto it, which is correct for the
 // default search experience (where AI Overview shows) and for AI Mode
 // (udm=50), but is too broad as written — it also overwrites the udm
 // value when someone explicitly clicks a different tab like Images
@@ -101,11 +109,11 @@ function buildRule() {
       }
     },
     condition: {
-      // requestDomains is hash-matched natively; pairing it with a short
-      // path-only urlFilter means Chrome never runs the pattern matcher
-      // against anything outside www.google.com in the first place.
+      // requestDomains limits the host; the "|" anchor limits the path to
+      // /search. Without the anchor this matched "/search?" anywhere in the
+      // URL — see the header comment.
       requestDomains: ["www.google.com"],
-      urlFilter: "/search?",
+      urlFilter: "|https://www.google.com/search?",
       requestMethods: ["get"],
       resourceTypes: ["main_frame"]
     }
@@ -143,7 +151,8 @@ function buildBypassRule(token) {
     action: { type: "allow" },
     condition: {
       requestDomains: ["www.google.com"],
-      urlFilter: `/search?*${BYPASS_PARAM}=${token}`,
+      // Anchored like buildRule(), for the same reason.
+      urlFilter: `|https://www.google.com/search?*${BYPASS_PARAM}=${token}`,
       requestMethods: ["get"],
       resourceTypes: ["main_frame"]
     }
