@@ -190,6 +190,11 @@ or inspect the popup (right-click the popup → Inspect).*
       `udm=14`
 - [ ] Open **Google Drive** (`drive.google.com`) and search for a file
 - [ ] Confirm Drive search works normally
+- [ ] Load `https://www.google.com/travel/search?q=hotels` (Google Hotels)
+      with a fresh query, not an autocompleted one
+- [ ] Confirm the URL does **not** contain `udm=14` and hotel results
+      render. Before the anchoring fix the www rule matched `/search?`
+      anywhere in the path; see `docs/monitoring/dnr-match-run.md`
 - [ ] Open any non-Google website
 - [ ] Confirm the extension has no visible effect
 
