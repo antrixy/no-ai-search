@@ -45,8 +45,18 @@
 // page itself* does nothing on that specific page, since nothing here is
 // running there to receive the change — it'll correctly apply the moment
 // you're back on a page this script does run on (a new search, the Web
-// tab, etc.). Someone manually navigating to a udm=50 URL would also
-// reach AI Mode unhindered, for the same underlying reason.
+// tab, etc.).
+//
+// Mechanism, measured later (docs/monitoring/dnr-match-run.md, finding
+// 2): Chrome intercepts AI Mode navigations and serves them from an
+// internal chrome://contextual-tasks/ page. No content script can be
+// injected into a chrome:// page, and declarativeNetRequest never sees
+// the request, because it never reaches the network. That is also why a
+// manually typed udm=50 URL reaches AI Mode unhindered: Chrome's matcher
+// says the redirect rule would match that URL, but the request is never
+// issued for it to act on. This is Chrome-version-dependent behaviour.
+// If a future Chrome lets that navigation reach the network, the
+// redirect will start catching it, with no change to this extension.
 //
 // Detection strategy: SELECTORS below are internal Google attributes
 // (data-attrid, jsname, etc.) that may or may not match what Google
