@@ -4,6 +4,40 @@ All notable changes to No AI Search are documented here. This project
 follows [Semantic Versioning](https://semver.org/) and the format is based
 on [Keep a Changelog](https://keepachangelog.com/).
 
+## 1.2.1 — 2026-10-12
+
+### Fixed
+- The `udm=14` redirect now applies only to Google Search. On
+  `www.google.com` the redirect rule's URL filter was unanchored, so it
+  matched `/search?` anywhere in a URL. That included Google Travel
+  (Hotels), Maps and Shopping searches, and `/url?` redirect links whose
+  target contained `/search?`. Those navigations gained `udm=14` and an
+  extra redirect. Travel rendered normally because it ignores the
+  parameter. The bare `google.com` rule was already anchored and was
+  not affected.
+- The allow rule behind "Show AI Overview for this search" had the same
+  unanchored shape, so a bypass token on one of those non-Search paths also
+  matched it. Both `www.google.com` rules now use the anchored form the
+  bare-domain rules already used.
+
+### Notes
+- No new permissions. The permission set is unchanged from 1.2.0. The
+  only code changes are the two rule filters. What gets hidden, the bypass
+  mechanism, the safe-vertical allowlist and the settings are all
+  unchanged.
+- Found by asking Chrome's own matcher (`testMatchOutcome()`) rather than
+  reading the documentation. See `docs/monitoring/dnr-match-run.md`,
+  finding 1. The fix was verified by a pre-registered re-run,
+  `docs/monitoring/dnr-match-run-1.2.1.md`: 21 of 21 matcher rows and 4 of
+  4 address-bar checks came back as predicted, on Chrome 154.
+- Known and unchanged: a URL carrying two `udm` parameters, one of them
+  allowlisted (for example `udm=50&udm=2`), still passes the allow rule.
+  This is not a normal browsing path. It is recorded as finding 3 of the
+  first matcher run.
+- Code comments corrected in `background.js` (the rules' scope) and
+  `content.js`. Chrome serves AI Mode navigations from an internal
+  `chrome://` page, which is why a typed `udm=50` URL is out of reach.
+
 ## 1.2.0 — 2026-08-28
 
 ### Changed

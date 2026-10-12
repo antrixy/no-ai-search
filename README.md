@@ -32,6 +32,8 @@ The rule only fires when `udm=14` isn't already present, which avoids redirect l
 
 ## What's new
 
+**1.2.1** — The extension now only touches Google Search. Earlier versions also added the Web filter to Google Travel (Hotels), Maps and Shopping searches made on `www.google.com`, which cost an extra page load. Search itself works exactly as before.
+
 **1.2.0** — The "Show AI Overview for this search" control moved from a banner on every results page into the toolbar popup. The extension no longer adds anything to the page. The bypass itself works exactly as before — open the popup on any search to use it.
 
 **1.1.2** — Fixes "People also ask" being hidden along with the AI Overview. This showed up when you switched the extension on while a results page was already open: the AI Overview disappeared correctly, but the question list went with it. Ordinary searches were unaffected.
