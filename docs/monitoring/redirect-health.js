@@ -36,7 +36,7 @@
 //   deliberate safe-vertical and bypass rows.
 // ---------------------------------------------------------------------
 
-const BACKGROUND_JS_SHA256 = "55c2a7f83e80321838f293732cb0f6a64ff1bb1ece4e483f3cb5629b1b863268";
+const BACKGROUND_JS_SHA256 = "834c516793b81b859c3e92416c5ba9770ebec2838abc6812d0f5128f29a5029f";
 
 (() => {
   // Copied verbatim from background.js @ BACKGROUND_JS_SHA256.
