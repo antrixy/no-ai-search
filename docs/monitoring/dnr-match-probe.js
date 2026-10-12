@@ -4,9 +4,16 @@
 // Asks Chrome's own matcher which rules would fire for a set of hypothetical
 // requests, via chrome.declarativeNetRequest.testMatchOutcome(). This settles
 // four open questions against the real matcher instead of against anyone's
-// reading of the docs:
+// reading of the docs.
 //
-//   1. SCOPE — background.js uses urlFilter "/search?" for the www rule.
+// RUN HISTORY — each run has its own pre-registration and results file:
+//   dnr-match-run.md        2026-08-17, against 1.2.0. Settled questions 1-4.
+//   dnr-match-run-1.2.1.md  against the 1.2.1 anchoring fix.
+// The four questions below are worded as they stood before the first run.
+// Question 1 describes the 1.2.0 rule; the answers live in the run files,
+// not here.
+//
+//   1. SCOPE — background.js (1.2.0) used urlFilter "/search?" for the www rule.
 //      Chrome's urlFilter is SUBSTRING matching unless anchored (the docs'
 //      own example: "abc" matches https://example.com/abcd). If so, the rule
 //      also reaches https://www.google.com/travel/search?q=... — outside the
@@ -53,8 +60,9 @@
 //      worker" → paste this into that console. NOT a page console: the
 //      chrome.declarativeNetRequest namespace is not available there.
 //
-// PRE-REGISTER BEFORE RUNNING — one prediction per row, written down first.
-// The rows most worth committing to:
+// PRE-REGISTER BEFORE RUNNING — one prediction per row, written down first,
+// in a dnr-match-run-*.md file committed before the run. The rows the first
+// run most needed to commit to were:
 //   travel/search (www)  → rules matched: ______
 //   travel/search (apex) → rules matched: ______   (expect none — control)
 //   udm=50 typed         → rules matched: ______
@@ -62,8 +70,9 @@
 //   udm=02               → rules matched: ______
 //   udm=50&udm=2         → rules matched: ______
 //
-// Falsifier for "the www rule is correctly scoped": any match on a
-// /travel/search or /maps/search row.
+// Falsifier for "the www rules are correctly scoped": any match on a
+// /travel/search, /maps/search, /shopping/search or /url? row, including the
+// bypass-on-travel row.
 // ---------------------------------------------------------------------
 
 (async () => {
@@ -117,6 +126,9 @@
     { group: 'scope', url: `${W}/maps/search?q=cafe`, note: 'Maps — MUST NOT MATCH' },
     { group: 'scope', url: `${W}/url?q=https://example.com/search?x=1`, note: '/search? inside a query value' },
     { group: 'scope', url: `${W}/shopping/search?q=shoes`, note: 'another /*/search? path' },
+    // Added for the 1.2.1 run. Rule #2 (bypass allow) had the same unanchored
+    // shape as rule #1; the first run never put the marker on a non-Search path.
+    { group: 'scope', url: `${W}/travel/search?q=hotel&show_ai_overview=${bypassToken || 'MISSING'}`, note: 'bypass marker off Search — MUST NOT MATCH' },
 
     // --- Q2: typed udm=50 ---
     { group: 'udm=50', url: `${W}/search?q=test&udm=50`, note: 'typed AI Mode URL' },
